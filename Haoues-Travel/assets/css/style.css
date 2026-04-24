@@ -342,6 +342,121 @@ p, li, label { line-height: var(--leading-arabic); }
   animation: auroraDrift 30s linear infinite;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ISLAMIC AMBIENT LAYER — geometric pattern + floating ornaments
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Tiled 8-pointed-star (Khatam) Islamic pattern, drifting slowly. */
+.islamic-pattern {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><g fill='none' stroke='%23E8C97A' stroke-width='0.7'><polygon points='60,8 71,29 92,18 81,39 102,50 81,61 92,82 71,71 60,92 49,71 28,82 39,61 18,50 39,39 28,18 49,29'/><polygon points='60,22 73,33 78,50 73,67 60,78 47,67 42,50 47,33'/><polygon points='60,38 65,48 75,50 65,52 60,62 55,52 45,50 55,48'/><circle cx='60' cy='50' r='2.5' fill='%23E8C97A' fill-opacity='0.4'/></g></svg>");
+  background-size: 120px 120px;
+  background-repeat: repeat;
+  animation: islamicDrift 90s linear infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes islamicDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 120px 120px; }
+}
+
+/* Floating ornament icons (crescents, stars, lanterns) */
+.islamic-floater {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.12;
+  width: 64px;
+  height: 64px;
+  color: var(--gold-300);
+  filter: drop-shadow(0 0 18px rgba(232, 201, 122, 0.35));
+}
+.islamic-floater svg { width: 100%; height: 100%; display: block; }
+
+.islamic-floater-1 {
+  top: 12vh; left: 6vw;
+  width: 78px; height: 78px;
+  animation: islamicFloat1 26s ease-in-out infinite;
+}
+.islamic-floater-2 {
+  top: 38vh; right: 4vw;
+  width: 56px; height: 56px;
+  color: var(--teal-300, #00C2B8);
+  opacity: 0.10;
+  animation: islamicFloat2 34s ease-in-out infinite;
+}
+.islamic-floater-3 {
+  bottom: 18vh; left: 12vw;
+  width: 70px; height: 70px;
+  animation: islamicFloat3 30s ease-in-out infinite;
+}
+.islamic-floater-4 {
+  top: 70vh; right: 10vw;
+  width: 48px; height: 48px;
+  color: var(--gold-200);
+  animation: islamicFloat4 38s ease-in-out infinite reverse;
+}
+
+@keyframes islamicFloat1 {
+  0%, 100% { transform: translate(0, 0) rotate(-12deg); }
+  50%      { transform: translate(20px, -28px) rotate(8deg); }
+}
+@keyframes islamicFloat2 {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  50%      { transform: translate(-24px, 32px) rotate(180deg); }
+}
+@keyframes islamicFloat3 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50%      { transform: translate(18px, -22px) rotate(-6deg); }
+}
+@keyframes islamicFloat4 {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  50%      { transform: translate(-30px, -18px) rotate(-180deg); }
+}
+
+@media (max-width: 720px) {
+  .islamic-floater-2, .islamic-floater-4 { display: none; }
+  .islamic-floater-1, .islamic-floater-3 { width: 48px; height: 48px; opacity: 0.09; }
+  .islamic-pattern { opacity: 0.05; background-size: 96px 96px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .islamic-pattern, .islamic-floater { animation: none !important; }
+}
+
+/* Inline SVG icons used throughout the UI. Use `currentColor` so they
+   inherit the surrounding text color; helper modifiers tint them. */
+.ic {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: -0.15em;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+.ic-gold { color: var(--gold-300); filter: drop-shadow(0 0 6px rgba(232, 201, 122, 0.4)); }
+.ic-teal { color: var(--teal-400, #00C2B8); }
+
+.about-bullet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.9;
+}
+.about-bullet .ic { font-size: 1.05em; }
+
+.contact-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-card-label .ic { font-size: 1.2em; }
+
 .mouse-glow {
   position: fixed;
   width: 420px;
