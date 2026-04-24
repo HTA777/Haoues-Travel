@@ -1057,23 +1057,47 @@ function renderAdminPackages() {
     return;
   }
   container.innerHTML = filtered.map(p => {
-    const seats = parseInt(p.seats) || 0;
-    const booked = parseInt(p.booked) || 0;
+    const norm = normalizeItem(p);
+    const seats = parseInt(norm.seats) || 0;
+    const booked = parseInt(norm.booked) || 0;
     const remaining = seats - booked;
     const isFull = remaining <= 0;
-    const isPublished = p.published === true;
+    const isPublished = norm.published === true;
     const rowIdx = Number(p.rowIndex);
-    const imgUrl = escapeHtml(String(p.image || ''));
-    const nameHtml = escapeHtml(p.name || 'بدون اسم');
+    // First image from the parsed images array, fall back to legacy `image`.
+    const heroImg = (Array.isArray(norm.images) && norm.images[0]) ? norm.images[0] : (norm.image || '');
+    const imgUrl = escapeHtml(String(heroImg));
+    const nameHtml = escapeHtml(norm.name || 'بدون اسم');
+    const hotelHtml = escapeHtml(norm.hotel || '—');
+    const priceText = Number.isFinite(Number(norm.price)) && Number(norm.price) > 0
+      ? `${Number(norm.price).toLocaleString()} دج`
+      : '—';
+    const startText = norm.start ? formatDate(norm.start) : '—';
+    const endText   = norm.end   ? formatDate(norm.end)   : '—';
+    const fallbackImg = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect fill=%22%23111%22 width=%2260%22 height=%2260%22/><text x=%2230%22 y=%2238%22 text-anchor=%22middle%22 font-size=%2224%22>🕋</text></svg>';
     return `
-        <div class="card" style="padding:18px; display:flex; gap:16px; align-items:center; flex-direction:row;">
-           <img src="${imgUrl}" alt="" loading="lazy" decoding="async" style="width:56px; height:56px; border-radius:12px; object-fit:cover; border:1px solid var(--glass-border);" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect fill=%22%23111%22 width=%2260%22 height=%2260%22/><text x=%2230%22 y=%2238%22 text-anchor=%22middle%22 font-size=%2224%22>🕋</text></svg>'">
-           <div style="flex:1; min-width:0;">
-             <strong style="display:block; margin-bottom:4px;">${nameHtml}</strong>
-             <small style="color:var(--text-muted);">${isPublished ? '✅ منشور' : '❌ مخفي'} | <span style="color:${isFull ? 'var(--danger)' : 'var(--success)'}">${isFull ? 'ممتلئ' : '💺 ' + remaining + ' متبقي'}</span> | ${booked}/${seats} مقعد</small>
+        <div class="card" style="padding:16px; display:flex; gap:16px; align-items:center; flex-direction:row;">
+           <img class="mgr-pkg-img" src="${imgUrl}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${fallbackImg}'">
+           <div class="mgr-pkg-meta">
+             <strong>${nameHtml}</strong>
+             <div class="mgr-pkg-stats">
+               <span>${isPublished ? '✅ منشور' : '❌ مخفي'}</span>
+               <span class="sep">•</span>
+               <span style="color:${isFull ? 'var(--danger)' : 'var(--success)'};">${isFull ? 'ممتلئ' : `💺 ${remaining} متبقي`}</span>
+               <span class="sep">•</span>
+               <span>${booked}/${seats} مقعد</span>
+               <span class="sep">•</span>
+               <span>💰 ${priceText}</span>
+               <span class="sep">•</span>
+               <span>🏨 ${hotelHtml}</span>
+               <span class="sep">•</span>
+               <span>📅 ${startText} → ${endText}</span>
+             </div>
            </div>
-           <button class="btn btn-s" onclick="showManager('package', ${rowIdx})" style="padding:10px 14px; font-size:0.85rem;" aria-label="تعديل">📝</button>
-           <button class="btn-delete" onclick="performFinalDeletionRobustV4('OFFERS', ${rowIdx})" title="حذف الباقة" aria-label="حذف الباقة">${ICON_TRASH}</button>
+           <div class="mgr-pkg-actions">
+             <button class="btn btn-s" onclick="showManager('package', ${rowIdx})" style="padding:10px 14px; font-size:0.85rem;" aria-label="تعديل">📝 تعديل</button>
+             <button class="btn-delete" onclick="performFinalDeletionRobustV4('OFFERS', ${rowIdx})" title="حذف الباقة" aria-label="حذف الباقة">${ICON_TRASH}</button>
+           </div>
         </div>
       `;
   }).join('');
