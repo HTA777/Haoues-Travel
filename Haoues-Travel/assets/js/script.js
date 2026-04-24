@@ -70,13 +70,17 @@ async function gasFetch(method, payload = {}, retries = 2) {
   };
   let finalUrl = url;
   if (isPost) {
-    if (!payload.key && !payload.pass) payload.pass = token;
+    // Backend (code.gs) reads the admin credential from `key` only — send it
+    // on that field, not `pass`. Non-admin POSTs (book, checkDuplicate) don't
+    // need a token.
+    if (token && !payload.key) payload.key = token;
     options.body = JSON.stringify(payload);
   } else {
     const params = new URLSearchParams(payload);
-    const isAdminAction = ['bookings', 'adminInitial', 'setup'].includes(payload.action);
-    if (isAdminAction && !params.has('key') && !params.has('pass')) {
-      params.append('pass', token);
+    const adminOnlyActions = ['bookings', 'adminInitial', 'setup'];
+    const isAdminAction = adminOnlyActions.includes(payload.action);
+    if (isAdminAction && token && !params.has('key')) {
+      params.append('key', token);
     }
     finalUrl = `${url}?${params.toString()}`;
   }
@@ -150,7 +154,7 @@ function normalizeItem(item) {
     airline: ["شركة_الطيران", "الطيران"],
     flightType: ["نوع_الرحلة"],
     documents: ["الوثائق_المطلوبة", "الوثائق"],
-    distance: ["المسافة_عن_الحرم", "المسافة"],
+    distance: ["المسافة_عن_الحرم", "المسافة", "distanceHaram"],
     food: ["الإطعام"],
     hotelMap: ["رابط_الفندق"],
     description: ["الوصف", "text"],
@@ -753,7 +757,9 @@ function populateRoomOptions() {
 }
 window.selectRoomFilter = function (val) {
   document.querySelectorAll('#room-chips .chip-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent === val);
+    // textContent includes the '🛏️ ' prefix, so compare on a trimmed suffix.
+    const label = btn.textContent.replace(/^\s*🛏️\s*/, '').trim();
+    btn.classList.toggle('active', label === val);
   });
   document.getElementById('b-room').value = val;
   updateBookingTotalPrice();
@@ -1787,13 +1793,20 @@ window.openOfferDetailModal = (packageName) => {
   document.getElementById('offer-detail-distance').textContent = item.distance || '—';
   // Fixed: use normalized `documents` instead of undefined `docs`
   document.getElementById('offer-detail-docs').textContent = item.documents || 'جواز سفر صالح';
-  // Rooms
+  // Rooms — use the JSON/text-aware parser so JSON commas don't get split as
+  // room boundaries. Show price alongside the name when available.
   const roomsEl = document.getElementById('offer-detail-rooms');
-  roomsEl.innerHTML = (item.rooms || 'ثنائية، ثلاثية، رباعية')
-    .split(/[،,]/)
-    .map(r => r.trim())
-    .filter(Boolean)
-    .map(r => `<span class="chip-btn" style="padding: 4px 10px; font-size: 0.8rem; cursor: default;">${escapeHtml(r)}</span>`)
+  const parsedRooms = parseRoomsField(item.rooms);
+  const displayRooms = parsedRooms.length
+    ? parsedRooms
+    : [{ name: 'ثنائية' }, { name: 'ثلاثية' }, { name: 'رباعية' }];
+  roomsEl.innerHTML = displayRooms
+    .map(r => {
+      const priceLabel = r.price
+        ? ` <span style="opacity:.65; font-weight:500;">(${Number(r.price).toLocaleString()} دج)</span>`
+        : '';
+      return `<span class="chip-btn" style="padding: 4px 10px; font-size: 0.8rem; cursor: default;">${escapeHtml(r.name)}${priceLabel}</span>`;
+    })
     .join('');
   // Desc — use textContent + pre-line CSS to preserve line breaks without HTML injection
   const descEl = document.getElementById('offer-detail-desc');
