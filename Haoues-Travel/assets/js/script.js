@@ -1887,22 +1887,50 @@ window.openOfferDetailModal = (packageName) => {
   const statusEl = document.getElementById('offer-detail-status');
   statusEl.textContent = isFull ? 'ممتلئ' : 'متاح';
   statusEl.className = `badge ${isFull ? 'badge-f' : 'badge-m'}`;
-  // Travel Dates handling
-  const datesEl = document.getElementById('offer-detail-dates');
-  datesEl.innerHTML = '';
-  if (item.travelStart || item.travelEnd) {
+  // ── Dates handling ─────────────────────────────────────────────────
+  // The modal has THREE date-related boxes in the stat-grid:
+  //   #offer-detail-dates      → "📅 التاريخ"  (offer availability window)
+  //   #offer-detail-departure  → "🛫 الذهاب"   (travelStart)
+  //   #offer-detail-return     → "🛬 العودة"   (travelEnd)
+  // Previously only the combined "📅 التاريخ" box was populated, leaving
+  // the two dedicated travel-date boxes empty. Fix: route the real
+  // travel-date values into their dedicated boxes, and collapse the
+  // combined "📅 التاريخ" box to the offer-validity window (or hide it
+  // entirely when both travel dates are present, to avoid redundancy).
+  const datesEl     = document.getElementById('offer-detail-dates');
+  const departureEl = document.getElementById('offer-detail-departure');
+  const returnEl    = document.getElementById('offer-detail-return');
+  const hideStatItem = (el) => {
+    if (!el) return;
+    const box = el.closest('.stat-item');
+    if (box) box.style.display = 'none';
+  };
+  const showStatItem = (el) => {
+    if (!el) return;
+    const box = el.closest('.stat-item');
+    if (box) box.style.display = '';
+  };
+  if (departureEl) {
     if (item.travelStart) {
-      const line = document.createElement('div');
-      line.textContent = `الذهاب: ${formatDate(item.travelStart)}`;
-      datesEl.appendChild(line);
+      departureEl.textContent = formatDate(item.travelStart);
+      showStatItem(departureEl);
+    } else {
+      hideStatItem(departureEl);
     }
+  }
+  if (returnEl) {
     if (item.travelEnd) {
-      const line = document.createElement('div');
-      line.textContent = `العودة: ${formatDate(item.travelEnd)}`;
-      datesEl.appendChild(line);
+      returnEl.textContent = formatDate(item.travelEnd);
+      showStatItem(returnEl);
+    } else {
+      hideStatItem(returnEl);
     }
-  } else {
-    datesEl.textContent = formatDate(item.start);
+  }
+  if (datesEl) {
+    // "📅 التاريخ" always shows the offer-listing date (when this offer
+    // became available on the site), separate from the travel dates.
+    datesEl.textContent = item.start ? formatDate(item.start) : '—';
+    showStatItem(datesEl);
   }
   document.getElementById('offer-detail-hotel').textContent = item.hotel || '—';
   document.getElementById('offer-detail-airline').textContent = item.airline || '—';
