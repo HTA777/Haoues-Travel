@@ -1094,22 +1094,22 @@ window.showManager = (type, rowIndex = null) => {
           <input type="hidden" name="action" value="savePackage">
           <input type="hidden" name="rowIndex" value="${rowIndex || ''}">
           <div class="full-w field"><label class="label">اسم الباقة</label><input type="text" name="name" value="${item ? item.name : ''}" placeholder="مثال: عمرة رمضان 2025" required></div>
-          <div class="field"><label class="label">السعر (دج)</label><input type="number" name="price" value="${item ? item.price : ''}" placeholder="85000" required></div>
+          <div class="field"><label class="label">السعر الأساسي (دج)</label><input type="number" name="price" value="${item ? item.price : ''}" placeholder="85000" required></div>
           <div class="field"><label class="label">الفندق</label><input type="text" name="hotel" value="${item ? item.hotel : ''}" placeholder="فندق الحرم" required></div>
-          <div class="field"><label class="label">تاريخ البداية</label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}" required></div>
-          <div class="field"><label class="label">تاريخ النهاية</label><input type="date" name="end" value="${item ? formatDateInput(item.end) : ''}" required></div>
-          
-          <div class="field"><label class="label">تاريخ الذهاب</label><input type="date" name="travelStart" value="${item ? formatDateInput(item.travelStart) : ''}"></div>
-          <div class="field"><label class="label">تاريخ العودة</label><input type="date" name="travelEnd" value="${item ? formatDateInput(item.travelEnd) : ''}"></div>
-          
+          <div class="field"><label class="label">بداية العرض <small style="color:var(--text-muted);">(متى يظهر للزبون)</small></label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}"></div>
+          <div class="field"><label class="label">نهاية العرض <small style="color:var(--text-muted);">(آخر يوم للحجز)</small></label><input type="date" name="end" value="${item ? formatDateInput(item.end) : ''}"></div>
+
+          <div class="field"><label class="label">تاريخ الذهاب <small style="color:var(--text-muted);">(للرحلة)</small></label><input type="date" name="travelStart" value="${item ? formatDateInput(item.travelStart) : ''}"></div>
+          <div class="field"><label class="label">تاريخ العودة <small style="color:var(--text-muted);">(للرحلة)</small></label><input type="date" name="travelEnd" value="${item ? formatDateInput(item.travelEnd) : ''}"></div>
+
           <div class="field"><label class="label">عدد المقاعد الكلي</label><input type="number" name="totalSeats" value="${item ? item.seats : '50'}" required></div>
           <div class="field"><label class="label">المحجوزة حالياً</label><input type="number" name="booked" value="${item ? item.booked : '0'}" required></div>
-          <div class="full-w field"><label class="label">قائمة الغرف (نص)</label><input type="text" name="rooms" value="${item ? item.rooms : 'ثنائية، ثلاثية، رباعية'}" required></div>
-          <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="field"><label class="label">سعر الثنائية</label><input type="number" name="priceDouble" value="${item ? item.priceDouble : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الثلاثية</label><input type="number" name="priceTriple" value="${item ? item.priceTriple : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الرباعية</label><input type="number" name="priceQuad" value="${item ? item.priceQuad : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الخماسية</label><input type="number" name="priceQuint" value="${item ? item.priceQuint : ''}" placeholder="اختياري"></div>
+
+          <div class="full-w field">
+            <label class="label">الغرف وأسعارها</label>
+            <div id="mgr-rooms-list" class="mgr-rooms-list"></div>
+            <button type="button" class="btn btn-s" id="mgr-add-room-btn" onclick="addRoomRow()" style="margin-top:10px;">➕ إضافة غرفة</button>
+            <small style="display:block; margin-top:6px; color:var(--text-muted);">💡 إذا تركت سعر الغرفة فارغاً، سيتم اعتماد السعر الأساسي للباقة.</small>
           </div>
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="field"><label class="label">شركة الطيران</label><input type="text" name="airline" value="${item ? item.airline : ''}"></div>
@@ -1154,6 +1154,27 @@ window.showManager = (type, rowIndex = null) => {
   if (type === 'package') {
     window._mgrImages = Array.isArray(item?.images) ? item.images.slice(0, 6) : [];
     renderMgrImageSlots();
+    // Seed the dynamic rooms editor from the existing offer (or defaults).
+    let seedRooms = item ? parseRoomsField(item.rooms) : [];
+    // Merge legacy discrete price fields into the parsed list.
+    if (item) {
+      const legacy = [
+        { k: 'priceDouble', match: 'ثنائية' },
+        { k: 'priceTriple', match: 'ثلاثية' },
+        { k: 'priceQuad',   match: 'رباعية' },
+        { k: 'priceQuint',  match: 'خماسية' }
+      ];
+      legacy.forEach(({ k, match }) => {
+        const v = Number(item[k]);
+        if (!v) return;
+        const existing = seedRooms.find(r => r.name && r.name.includes(match));
+        if (existing && !existing.price) existing.price = v;
+        else if (!existing) seedRooms.push({ name: match, price: v });
+      });
+    }
+    if (!seedRooms.length) seedRooms = [{ name: 'ثنائية', price: '' }, { name: 'ثلاثية', price: '' }, { name: 'رباعية', price: '' }];
+    window._mgrRooms = seedRooms.map(r => ({ name: r.name || '', price: r.price || '' }));
+    renderMgrRoomsList();
   }
   // Form submission handler
   form.onsubmit = async (e) => {
@@ -1170,6 +1191,29 @@ window.showManager = (type, rowIndex = null) => {
     const imagesArr = Array.isArray(window._mgrImages) ? window._mgrImages.filter(Boolean).slice(0, 6) : [];
     payload.image = imagesArr[0] || '';
     payload.images = JSON.stringify(imagesArr);
+
+    // Serialize dynamic rooms -> JSON [{name, price}]. Fall back to base price.
+    syncMgrRoomsFromDom();
+    const basePrice = Number(payload.price) || 0;
+    const roomsArr = (window._mgrRooms || [])
+      .map(r => ({ name: String(r.name || '').trim(), price: Number(r.price) || basePrice }))
+      .filter(r => r.name);
+    payload.rooms = JSON.stringify(roomsArr);
+    if (!roomsArr.length) {
+      showToast('❌ أضف غرفة واحدة على الأقل.', 'error');
+      subBtn.disabled = false; btnText.style.display = 'inline'; btnLoading.style.display = 'none';
+      return;
+    }
+
+    // Sensible date defaults so the offer doesn't get hidden by the backend's
+    // "not started yet" / "expired" filters when the admin leaves them empty.
+    const toISO = d => d.toISOString().slice(0, 10);
+    if (!payload.start) payload.start = toISO(new Date());
+    if (!payload.end) {
+      const y = new Date(); y.setFullYear(y.getFullYear() + 1);
+      payload.end = toISO(y);
+    }
+
     // Step 2: Prepare row values for Google Sheets
     btnLoading.textContent = '💾 جاري حفظ البيانات...';
     let values = [
@@ -1181,7 +1225,7 @@ window.showManager = (type, rowIndex = null) => {
       payload.hotel,                // الفندق (5)
       Number(payload.totalSeats),   // المقاعد (6)
       Number(payload.booked),       // المحجوزة (7)
-      payload.rooms,                // الغرف (8)
+      payload.rooms,                // الغرف (8) — JSON [{name, price}]
       payload.published === 'true', // منشور (9)
       payload.airline || '',        // AIRLINE (10)
       payload.flightType || '',     // FLIGHT_TYPE (11)
@@ -1565,6 +1609,40 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 400);
   }, 4000);
 }
+/* ─── Dynamic Rooms Editor in Manager Modal ─── */
+function renderMgrRoomsList() {
+  const wrap = document.getElementById('mgr-rooms-list');
+  if (!wrap) return;
+  const rooms = Array.isArray(window._mgrRooms) ? window._mgrRooms : [];
+  wrap.innerHTML = rooms.map((r, i) => `
+    <div class="mgr-room-row" data-idx="${i}">
+      <input type="text" class="mgr-room-name" placeholder="اسم الغرفة (ثنائية، ثلاثية...)" value="${escapeHtml(r.name || '')}" oninput="syncMgrRoomsFromDom()">
+      <input type="number" class="mgr-room-price" placeholder="السعر / شخص (دج)" value="${r.price === '' || r.price == null ? '' : r.price}" min="0" oninput="syncMgrRoomsFromDom()">
+      <button type="button" class="mgr-room-remove" onclick="removeRoomRow(${i})" aria-label="حذف الغرفة" title="حذف">×</button>
+    </div>
+  `).join('');
+}
+window.addRoomRow = function () {
+  syncMgrRoomsFromDom();
+  window._mgrRooms = window._mgrRooms || [];
+  window._mgrRooms.push({ name: '', price: '' });
+  renderMgrRoomsList();
+};
+window.removeRoomRow = function (idx) {
+  syncMgrRoomsFromDom();
+  if (!Array.isArray(window._mgrRooms)) return;
+  window._mgrRooms.splice(idx, 1);
+  renderMgrRoomsList();
+};
+window.syncMgrRoomsFromDom = function () {
+  const wrap = document.getElementById('mgr-rooms-list');
+  if (!wrap) return;
+  window._mgrRooms = Array.from(wrap.querySelectorAll('.mgr-room-row')).map(row => ({
+    name: row.querySelector('.mgr-room-name')?.value || '',
+    price: row.querySelector('.mgr-room-price')?.value || ''
+  }));
+};
+
 /* ─── Multi-image Upload (up to 6) in Manager Modal ─── */
 const MGR_MAX_IMAGES = 6;
 

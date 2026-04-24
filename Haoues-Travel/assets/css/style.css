@@ -90,7 +90,7 @@
   --text-2xl:   2.40rem;
   --text-3xl:   3.00rem;
   --text-4xl:   3.75rem;
-  --text-hero:  clamp(2.5rem, 7vw, 5.5rem);
+  --text-hero:  clamp(3rem, 9vw, 7rem);
 
   /* ── LINE HEIGHTS ─────────────────────────────── */
   --leading-tight:   1.2;
@@ -374,6 +374,57 @@ p, li, label { line-height: var(--leading-arabic); }
   bottom: -80px; left: -100px;
   background: rgba(0, 194, 184, 0.10);
   animation-delay: -8s;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Animated skyline behind the hero (Kaaba + Clock Tower silhouette).
+   Sits behind all hero content, slowly drifts right→left, and fades
+   into the page background via a gradient mask so it blends away
+   as the user scrolls past the hero.
+   ═══════════════════════════════════════════════════════════════ */
+.hero-skyline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  /* Fade into the page bg: fully visible in middle, transparent top/bottom. */
+  -webkit-mask-image: linear-gradient(to bottom,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0.6) 35%,
+    rgba(0,0,0,0.9) 65%,
+    rgba(0,0,0,0) 100%);
+          mask-image: linear-gradient(to bottom,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,0.6) 35%,
+    rgba(0,0,0,0.9) 65%,
+    rgba(0,0,0,0) 100%);
+}
+.hero-skyline-svg {
+  position: absolute;
+  left: -5%;
+  bottom: 0;
+  width: 110%;
+  height: 70%;
+  opacity: 0.85;
+  animation: skylinePan 48s ease-in-out infinite alternate;
+}
+.skyline-layer { transform-origin: center bottom; }
+.skyline-far { animation: skylineFar 60s ease-in-out infinite alternate; }
+.skyline-mid { animation: skylineMid 40s ease-in-out infinite alternate; }
+
+@keyframes skylinePan {
+  0%   { transform: translateX(0) scale(1); }
+  100% { transform: translateX(-4%) scale(1.03); }
+}
+@keyframes skylineFar {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(1.5%); }
+}
+@keyframes skylineMid {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(-1%, -4px); }
+  100% { transform: translate(0.5%, 0); }
 }
 
 @keyframes auroraDrift {
@@ -1043,23 +1094,37 @@ main { display: block; }
   flex-direction: column;
   align-items: center;
   gap: var(--space-6);
+  position: relative;
+  z-index: 2;
 }
 
 .hero-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 8px 18px;
+  padding: 12px 26px;
   border-radius: var(--radius-pill);
   background: var(--glass-fill);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid rgba(0,194,184,0.35);
   color: var(--teal-300);
-  font-size: var(--text-sm);
-  font-weight: var(--w-semibold);
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  font-weight: var(--w-bold);
   letter-spacing: var(--tracking-wide);
   box-shadow: 0 0 24px rgba(0,194,184,0.12);
+}
+
+/* Prevent copying / selection / dragging of the hero headlines. */
+.no-select,
+.hero-title,
+.hero-eyebrow {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 .hero-title {
@@ -2084,6 +2149,52 @@ main { display: block; }
   gap: 10px;
   margin-top: 10px;
 }
+
+/* Dynamic rooms editor rows */
+.mgr-rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.mgr-room-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 44px;
+  gap: 8px;
+  align-items: center;
+}
+.mgr-room-row input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+  font-size: 0.95rem;
+  min-height: 44px;
+}
+.mgr-room-row input:focus {
+  outline: none;
+  border-color: var(--teal-400);
+  background: rgba(0,194,184,0.05);
+}
+.mgr-room-remove {
+  height: 44px;
+  border: 1px solid rgba(255,71,87,0.4);
+  background: rgba(255,71,87,0.08);
+  color: #ff6b7a;
+  border-radius: 12px;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mgr-room-remove:hover { background: rgba(255,71,87,0.18); }
+@media (max-width: 480px) {
+  .mgr-room-row { grid-template-columns: 1fr 1fr 44px; }
+}
 .mgr-img-slot {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -2236,7 +2347,8 @@ main { display: block; }
     scroll-behavior: auto !important;
   }
   .reveal, .reveal-ready { opacity: 1 !important; transform: none !important; }
-  .btn-pulse, .whatsapp-float, .aurora, .circle-bg { animation: none !important; }
+  .btn-pulse, .whatsapp-float, .aurora, .circle-bg,
+  .hero-skyline-svg, .skyline-far, .skyline-mid { animation: none !important; }
   #grid-canvas { display: none; }
   .text-shimmer, .agency-name-deco, .hero-title-deco {
     animation: none !important;

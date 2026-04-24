@@ -38,7 +38,7 @@
     href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Cairo:wght@400;500;600;700;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@500;700&display=swap"
     rel="stylesheet">
 
-  <link rel="stylesheet" href="assets/css/style.css?v=haoues-11.3">
+  <link rel="stylesheet" href="assets/css/style.css?v=haoues-11.4">
   <link rel="icon" type="image/png" href="logo/Haous-Logo2.png">
   <link rel="apple-touch-icon" href="logo/Haous-Logo2.png">
 
@@ -108,12 +108,44 @@
   <main>
     <div class="circle-bg circle-bg-1" aria-hidden="true"></div>
     <div class="circle-bg circle-bg-2" aria-hidden="true"></div>
+    <div class="hero-skyline" aria-hidden="true">
+      <svg class="hero-skyline-svg" viewBox="0 0 1600 480" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="skyTower" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#d4af37" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#d4af37" stop-opacity="0.08"/>
+          </linearGradient>
+          <linearGradient id="skyKaaba" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00c2b8" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#00c2b8" stop-opacity="0.05"/>
+          </linearGradient>
+        </defs>
+        <g class="skyline-layer skyline-far">
+          <path d="M0,430 L0,380 L120,370 L140,355 L160,370 L300,365 L320,340 L340,365 L500,360 L540,325 L580,360 L760,355 L820,300 L880,355 L1080,350 L1120,325 L1160,350 L1340,345 L1360,320 L1380,345 L1600,340 L1600,480 L0,480 Z" fill="rgba(255,255,255,0.04)"/>
+        </g>
+        <g class="skyline-layer skyline-mid">
+          <g transform="translate(620,150)">
+            <rect x="-30" y="0" width="60" height="280" fill="url(#skyTower)"/>
+            <rect x="-50" y="240" width="100" height="50" fill="url(#skyTower)"/>
+            <circle cx="0" cy="-20" r="40" fill="none" stroke="#d4af37" stroke-opacity="0.55" stroke-width="2"/>
+            <line x1="0" y1="-20" x2="0" y2="-50" stroke="#d4af37" stroke-opacity="0.6" stroke-width="2"/>
+            <line x1="0" y1="-20" x2="25" y2="-10" stroke="#d4af37" stroke-opacity="0.45" stroke-width="1.5"/>
+            <path d="M-10,-80 Q0,-110 10,-80 Z" fill="#d4af37" fill-opacity="0.5"/>
+          </g>
+          <g transform="translate(960,340)">
+            <rect x="-60" y="0" width="120" height="90" fill="url(#skyKaaba)"/>
+            <rect x="-60" y="0" width="120" height="10" fill="#d4af37" fill-opacity="0.35"/>
+          </g>
+          <path d="M400,430 a60,25 0 0 1 120,0 M1100,430 a50,22 0 0 1 100,0" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        </g>
+      </svg>
+    </div>
 
     <!-- ═══════ HERO ═══════ -->
     <header id="hero" class="hero">
       <div class="hero-content">
-        <span class="hero-eyebrow">✦ رحلات الحج والعمرة — تجربة فاخرة</span>
-        <h1 class="hero-title">
+        <span class="hero-eyebrow no-select" oncontextmenu="return false">✦ رحلات الحج والعمرة — تجربة فاخرة</span>
+        <h1 class="hero-title no-select" oncontextmenu="return false">
           رحلة العمر
           <span class="hero-title-deco">بلمسة ملكية</span>
         </h1>
@@ -181,7 +213,7 @@
     <section id="about" class="section" aria-labelledby="about-title">
       <div class="about-section reveal">
         <div class="about-panel">
-          <h2 id="about-title" class="about-panel-title">لماذا تختار حواس؟</h2>
+          <h2 id="about-title" class="about-panel-title">لماذا تختار حواس ترافل؟</h2>
           <p id="agency-desc" class="about-panel-text">
             نحن لا ننظم رحلات فحسب، بل نصنع <strong>ذكريات روحانية خالدة</strong>. بفضل خبرتنا الطويلة نضمن لكم:
             <br><br>
@@ -582,7 +614,7 @@
   </div>
 
   <!-- Global Scripts — xlsx lazy-loaded from script.js on demand -->
-  <script src="assets/js/script.js?v=haoues-11.3" defer></script>
+  <script src="assets/js/script.js?v=haoues-11.4" defer></script>
 </body>
 
 </html>
