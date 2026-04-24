@@ -324,6 +324,9 @@ window.toggleMobileNav = () => {
   overlay.classList.toggle('active', willOpen);
   hamburger.classList.toggle('active', willOpen);
   hamburger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  // Toggle aria-hidden so the overlay's contents are exposed/hidden from
+  // assistive tech in step with the visual state.
+  overlay.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
   document.body.style.overflow = willOpen ? 'hidden' : '';
 };
 /* ─── Main UI Init ─── */
@@ -627,6 +630,10 @@ window.openModal = (id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('active');
+  // Expose the modal contents to assistive tech while it is visible.
+  // The HTML defaults to aria-hidden="true"; without this flip, screen
+  // readers cannot see anything inside the open dialog.
+  el.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
   // Focus first focusable control inside modal
   setTimeout(() => {
@@ -638,6 +645,7 @@ window.closeModal = (id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('active');
+  el.setAttribute('aria-hidden', 'true');
   // Restore page scroll if no other modals are open
   const anyOpen = document.querySelector('.modal-overlay.active');
   if (!anyOpen) document.body.style.overflow = '';
@@ -2084,7 +2092,10 @@ window.openLightbox = (images, startIdx = 0) => {
 };
 window.closeLightbox = () => {
   const lb = document.getElementById('lightbox-overlay');
-  if (lb) lb.classList.remove('active');
+  if (lb) {
+    lb.classList.remove('active');
+    lb.setAttribute('aria-hidden', 'true');
+  }
   const anyOpen = document.querySelector('.modal-overlay.active');
   if (!anyOpen) document.body.style.overflow = '';
   document.removeEventListener('keydown', handleLightboxKeydown);
