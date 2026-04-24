@@ -376,64 +376,7 @@ p, li, label { line-height: var(--leading-arabic); }
   animation-delay: -8s;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Hero background image (Kaaba + Clock Tower).
-   Rendered at its NATURAL resolution — never upscaled (scale-down),
-   never stretched, never cropped. Centered on the Clock Tower.
-   Letterbox area is filled with the image's own sky tone so the
-   seams blend naturally. A vanilla-JS scroll handler fades the
-   whole image layer from opacity 1 -> 0 over the first 50vh.
-   ═══════════════════════════════════════════════════════════════ */
-.hero-skyline {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-  background: transparent;   /* let the page bg show through the feathered edges */
-  /* JS sets --hero-fade [0..1] from scroll; we map it to opacity so
-     only the skyline (i.e. the image layer) fades. Nothing else. */
-  opacity: var(--hero-fade, 1);
-  will-change: opacity;
-}
-.hero-skyline picture {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  /* Pin the image to the TOP of the hero (not vertically centered). */
-  align-items: flex-start;
-  justify-content: center;
-}
-.hero-skyline-img {
-  display: block;
-  /* Never upscale past the file's natural pixels; never crop; never
-     stretch. `scale-down` picks the smaller of "contain" or "none",
-     which guarantees no upscaling. */
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: scale-down;
-  object-position: center top;
-  /* Feather all four edges so the image blends into the page bg
-     instead of ending in a hard rectangle. */
-  -webkit-mask-image: radial-gradient(ellipse 92% 88% at center,
-    #000 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
-          mask-image: radial-gradient(ellipse 92% 88% at center,
-    #000 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
-}
-@media (max-width: 768px) {
-  .hero-skyline-img {
-    /* Slightly tighter feather on narrow screens so the ratio looks right. */
-    -webkit-mask-image: radial-gradient(ellipse 95% 92% at center,
-      #000 50%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 100%);
-            mask-image: radial-gradient(ellipse 95% 92% at center,
-      #000 50%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 100%);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-skyline { transition: none; }
-}
+/* Hero background image layer intentionally removed per design request. */
 
 @keyframes auroraDrift {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -1135,35 +1078,55 @@ main { display: block; }
   -webkit-touch-callout: none;
 }
 
+/* Arabic title — use the Arabic font stack (Tajawal) rather than Playfair,
+   which has no Arabic glyphs and was causing the Amiri fallback to cut
+   into neighbouring letters. No italic (italic is a Latin concept and
+   distorts Arabic glyphs). */
 .hero-title {
-  font-family: var(--font-display);
+  font-family: var(--font-arabic);
   font-size: var(--text-hero);
-  font-weight: var(--w-black);
+  font-weight: 900;
   color: var(--gold-200);
-  line-height: 1.10;
-  letter-spacing: var(--tracking-tight);
+  line-height: 1.25;
+  letter-spacing: normal;
   text-shadow: 0 4px 40px rgba(212,175,55,0.25);
   margin: 0;
+  /* Leave a little breathing room so descenders/diacritics aren't clipped. */
+  padding-block: 0.1em;
 }
 .hero-title-deco {
   display: inline-block;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: var(--w-bold);
+  font-family: var(--font-arabic);
+  font-style: normal;
+  font-weight: 900;
   background: linear-gradient(90deg, var(--gold-300), var(--gold-100), var(--gold-400));
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: goldShimmer 5s linear infinite;
+  padding-inline: 0.08em;   /* prevents the shimmer clip from trimming side letters */
 }
 
+/* Subtitle: glowing dark glass card so the text is legible against the
+   busy ambient background. */
 .hero-subtitle {
-  max-width: 620px;
+  max-width: 660px;
   font-size: var(--text-md);
-  color: var(--text-secondary);
+  color: #f4f7fb;           /* near-white for strong contrast */
   line-height: var(--leading-arabic);
   margin: 0 auto;
+  padding: 18px 28px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(8,16,30,0.72), rgba(6,13,26,0.82));
+  border: 1px solid rgba(0,194,184,0.28);
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.45),
+    0 0 32px rgba(0,194,184,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .btn-cta-deco {
@@ -2355,8 +2318,7 @@ main { display: block; }
     scroll-behavior: auto !important;
   }
   .reveal, .reveal-ready { opacity: 1 !important; transform: none !important; }
-  .btn-pulse, .whatsapp-float, .aurora, .circle-bg,
-  .hero-skyline-img { animation: none !important; }
+  .btn-pulse, .whatsapp-float, .aurora, .circle-bg { animation: none !important; }
   #grid-canvas { display: none; }
   .text-shimmer, .agency-name-deco, .hero-title-deco {
     animation: none !important;

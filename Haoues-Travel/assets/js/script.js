@@ -239,36 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupScrollToTop();
   animateCounters();
   initCanvasGrid();
-  setupHeroScrollFade();
 });
-
-/* ─── Hero image scroll fade ────────────────────────────────────
-   Fades the hero skyline image layer (only) from opacity 1 -> 0
-   across the first 50vh of scroll. Nothing else fades — navbar,
-   hero text, and buttons sit in their own DOM layers. */
-function setupHeroScrollFade() {
-  const skyline = document.querySelector('.hero-skyline');
-  if (!skyline) return;
-  let pending = false;
-  const update = () => {
-    pending = false;
-    const vh = window.innerHeight || 1;
-    const travel = vh * 0.5;           // fade completes after 50vh
-    const y = Math.max(0, window.scrollY || window.pageYOffset || 0);
-    const fade = Math.max(0, 1 - y / travel);
-    skyline.style.setProperty('--hero-fade', fade.toFixed(3));
-    // Stop eating layout once fully hidden.
-    skyline.style.visibility = fade <= 0.01 ? 'hidden' : '';
-  };
-  const onScroll = () => {
-    if (pending) return;
-    pending = true;
-    requestAnimationFrame(update);
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll, { passive: true });
-  update();
-}
 /* ─── Reveal on Scroll ─── */
 let revealObserver;
 function setupRevealOnScroll() {
