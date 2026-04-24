@@ -390,10 +390,7 @@ p, li, label { line-height: var(--leading-arabic); }
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
-  /* Sky-blue of the PC landscape illustration (top-center sample) —
-     fills the letterbox area around the contained image so the join
-     is seamless. Overridden per-breakpoint below. */
-  background-color: #598cc1;
+  background: transparent;   /* let the page bg show through the feathered edges */
   /* JS sets --hero-fade [0..1] from scroll; we map it to opacity so
      only the skyline (i.e. the image layer) fades. Nothing else. */
   opacity: var(--hero-fade, 1);
@@ -403,7 +400,8 @@ p, li, label { line-height: var(--leading-arabic); }
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  /* Pin the image to the TOP of the hero (not vertically centered). */
+  align-items: flex-start;
   justify-content: center;
 }
 .hero-skyline-img {
@@ -416,11 +414,22 @@ p, li, label { line-height: var(--leading-arabic); }
   width: auto;
   height: auto;
   object-fit: scale-down;
-  object-position: center center;
+  object-position: center top;
+  /* Feather all four edges so the image blends into the page bg
+     instead of ending in a hard rectangle. */
+  -webkit-mask-image: radial-gradient(ellipse 92% 88% at center,
+    #000 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
+          mask-image: radial-gradient(ellipse 92% 88% at center,
+    #000 55%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
 }
 @media (max-width: 768px) {
-  /* Mobile uses the 9:16 portrait photo whose sky is a deeper blue. */
-  .hero-skyline { background-color: #4377b1; }
+  .hero-skyline-img {
+    /* Slightly tighter feather on narrow screens so the ratio looks right. */
+    -webkit-mask-image: radial-gradient(ellipse 95% 92% at center,
+      #000 50%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 100%);
+            mask-image: radial-gradient(ellipse 95% 92% at center,
+      #000 50%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0) 100%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-skyline { transition: none; }

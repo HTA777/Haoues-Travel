@@ -1311,7 +1311,9 @@ window.performFinalDeletionRobustV4 = async (type, rowIndex) => {
     const token = sessionStorage.getItem('admin_token');
     const payload = {
       action: 'delete',
-      pass: token,
+      // Backend (code.gs) reads the admin credential from `key` only —
+      // matches the `pass` → `key` migration in gasFetch.
+      key: token,
       type: type,
       rowIndex: idx
     };
