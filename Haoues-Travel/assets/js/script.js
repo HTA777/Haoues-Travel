@@ -1214,6 +1214,24 @@ window.showManager = (type, rowIndex = null) => {
       payload.end = toISO(y);
     }
 
+    // ─── Timezone-safety shim for the public-packages filter ────────────
+    // Backend (code.gs::getPackages) hides offers whose start > "today",
+    // where "today" is `new Date(); now.setHours(0,0,0,0)` — i.e. local
+    // (script-TZ) midnight. The start cell, however, is stored as UTC
+    // midnight. In any timezone east of UTC (e.g. Algeria GMT+1), a start
+    // of "today" lands AFTER local midnight, so the offer stays hidden
+    // until the next day. We compensate here by shifting the saved start
+    // back by exactly one calendar day. The admin sees no difference; the
+    // offer simply appears on the day they chose.
+    const shiftBackOneDay = (isoStr) => {
+      if (!isoStr) return '';
+      const d = new Date(isoStr + 'T12:00:00Z'); // noon UTC -> safe rounding
+      if (isNaN(d.getTime())) return isoStr;
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    };
+    payload.start = shiftBackOneDay(payload.start);
+
     // Step 2: Prepare row values for Google Sheets
     btnLoading.textContent = '💾 جاري حفظ البيانات...';
     let values = [
