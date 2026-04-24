@@ -483,31 +483,61 @@ function renderPackages() {
     const priceText = Number.isFinite(Number(item.price)) && Number(item.price) > 0
       ? Number(item.price).toLocaleString()
       : '—';
+    const dateLine = item.travelStart || item.travelEnd
+      ? [
+          item.travelStart ? `<span>🛫 ${escapeHtml(formatDate(item.travelStart))}</span>` : '',
+          item.travelEnd   ? `<span>🛬 ${escapeHtml(formatDate(item.travelEnd))}</span>` : ''
+        ].filter(Boolean).join('<span style="color:var(--border-mid);">•</span>')
+      : `<span>📅 ${escapeHtml(formatDate(item.start))}</span>`;
+    const staggerClass = `stagger-${Math.min(index + 1, 5)}`;
     return `
-      <div class="card reveal" style="transition-delay: ${index * 0.1}s; cursor: pointer; display: flex; flex-direction: column;" onclick="window.openOfferDetailModal('${nameJs}')">
-       <span class="badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
-              <div class="card-body" style="padding: 40px 24px; flex: 1; display: flex; flex-direction: column; text-align: center;">
-                <div style="font-size:3.5rem; text-align:center; margin-bottom:20px; opacity: 0.9;">🕋</div>
-                <h3 style="text-align:center; font-size:3.2rem; margin-bottom:15px; color: var(--primary-light);">${nameHtml}</h3>
-                <div class="price" style="text-align:center; font-size:2rem; margin-bottom: 30px;">ابتداءً من <span style="font-size: 4rem; font-weight: bold;">${priceText} دج</span></div>
-                <div class="meta" style="grid-template-columns: 1fr; gap: 12px; margin-bottom: 30px; flex: 1; text-align: center;">
-                  ${item.travelStart || item.travelEnd ? `
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; display: flex; flex-direction: column; gap: 6px;">
-                    ${item.travelStart ? `<div><span style="color:var(--text-muted);">🛫 الذهاب:</span> <span style="font-weight:700;">${escapeHtml(formatDate(item.travelStart))}</span></div>` : ''}
-                    ${item.travelEnd ? `<div><span style="color:var(--text-muted);">🛬 العودة:</span> <span style="font-weight:700;">${escapeHtml(formatDate(item.travelEnd))}</span></div>` : ''}
-                  </div>
-                  ` : `<div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center;">📅 ${escapeHtml(formatDate(item.start))}</div>`}
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; font-size:1.15rem; font-weight:800; color:var(--text-main);">🏨 ${hotelHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; color: var(--text-dim); font-size:0.9rem;">✈️ ${airlineHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; color: var(--text-dim); font-size:0.9rem;">📍 المسافة: ${distanceHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; font-size:1.15rem; font-weight:800; color:var(--text-main);">💺 متبقي: ${remaining} مقعد</div>
-                </div>
-                <button class="btn btn-p" style="width: 100%; margin-top: auto;" onclick="event.stopPropagation(); window.openOfferDetailModal('${nameJs}')">
-                  عرض التفاصيل 🔍
-                 </button>
-                         </div>
-                       </div>
-                     `;
+      <article class="card reveal ${staggerClass}" role="listitem" tabindex="0"
+        onclick="window.openOfferDetailModal('${nameJs}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.openOfferDetailModal('${nameJs}');}"
+        aria-label="${nameHtml} — عرض التفاصيل">
+        <div class="card-body">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <div style="font-size:2.4rem; line-height:1;" aria-hidden="true">🕋</div>
+            <span class="badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
+          </div>
+          <h3 style="font-family:var(--font-display); font-size:var(--text-lg); color:var(--gold-200); margin-bottom:var(--space-3); line-height:var(--leading-snug);">${nameHtml}</h3>
+
+          <div style="display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-4); font-size:var(--text-sm); color:var(--text-secondary); align-items:center;">
+            ${dateLine}
+          </div>
+
+          <div class="meta" style="grid-template-columns:1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">🏨 الفندق</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${hotelHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">✈️ الطيران</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${airlineHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">📍 المسافة</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${distanceHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">💺 المقاعد</div>
+              <div style="font-weight:var(--w-bold); color:${isFull ? 'var(--danger)' : 'var(--success)'}; font-size:var(--text-sm);">${isFull ? 'ممتلئ' : `${remaining} متبقي`}</div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-subtle); padding-top:var(--space-4); display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap;">
+            <div>
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); letter-spacing:var(--tracking-wide);">ابتداءً من</div>
+              <div class="price" style="font-size:var(--text-lg);">${priceText} <span style="font-size:var(--text-sm); color:var(--text-secondary);">دج</span></div>
+            </div>
+            <button class="btn btn-p" style="padding:10px 22px; font-size:var(--text-sm);"
+              onclick="event.stopPropagation(); window.openOfferDetailModal('${nameJs}')"
+              ${isFull ? 'disabled' : ''}>
+              ${isFull ? 'نفدت' : 'التفاصيل 🔍'}
+            </button>
+          </div>
+        </div>
+      </article>`;
   }).join('');
   refreshRevealObserver();
 }
@@ -651,7 +681,7 @@ function populateRoomOptions() {
   const roomText = currentBookingPackage.rooms || "ثنائية، ثلاثية، رباعية";
   const rooms = roomText.split(/[،,]/).map(r => r.trim()).filter(Boolean);
   container.innerHTML = rooms
-    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" onclick="selectRoomFilter('${escapeJsString(r)}')">${escapeHtml(r)}</button>`)
+    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" style="min-height:60px; font-size:var(--text-sm);" onclick="selectRoomFilter('${escapeJsString(r)}')">🛏️ ${escapeHtml(r)}</button>`)
     .join('');
   hiddenInput.value = rooms[0] || '';
 }
@@ -846,18 +876,18 @@ function renderAdminBookings() {
     const rowIdx = Number(b.rowIndex);
     return `
       <tr data-status="${escapeHtml(statusForFilter)}" data-package="${escapeHtml(pkgName)}">
-        <td>${escapeHtml(b.firstName || '')} ${escapeHtml(b.lastName || '')}</td>
-        <td dir="ltr">${escapeHtml(b.phone || '')}</td>
-        <td>${escapeHtml(pkgName)}</td>
-        <td>${escapeHtml(String(b.pax || ''))}</td>
-        <td>${escapeHtml(b.roomType || '')}</td>
-        <td>
+        <td data-label="الاسم">${escapeHtml(b.firstName || '')} ${escapeHtml(b.lastName || '')}</td>
+        <td data-label="الهاتف" dir="ltr">${escapeHtml(b.phone || '')}</td>
+        <td data-label="الباقة">${escapeHtml(pkgName)}</td>
+        <td data-label="أفراد">${escapeHtml(String(b.pax || ''))}</td>
+        <td data-label="الغرفة">${escapeHtml(b.roomType || '')}</td>
+        <td data-label="الحالة">
           <span class="st ${si.cls}" role="button" tabindex="0" onclick="cycleBookingStatus(${rowIdx}, '${escapeJsString(b.status)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cycleBookingStatus(${rowIdx}, '${escapeJsString(b.status)}');}" title="انقر لتغيير الحالة">
             ${si.label}
           </span>
         </td>
-        <td style="font-size: 0.72rem; color: var(--text-dim);">${escapeHtml(formatDate(b.timestamp))}</td>
-        <td><button class="btn-delete" onclick="performFinalDeletionRobustV4('BOOKINGS', ${rowIdx})" title="حذف الحجز" aria-label="حذف الحجز">${ICON_TRASH}</button></td>
+        <td data-label="التاريخ" style="font-size:0.72rem; color:var(--text-muted-strong);">${escapeHtml(formatDate(b.timestamp))}</td>
+        <td data-label="إجراءات"><button class="btn-delete" onclick="performFinalDeletionRobustV4('BOOKINGS', ${rowIdx})" title="حذف الحجز" aria-label="حذف الحجز">${ICON_TRASH}</button></td>
       </tr>
     `;
   }).join('');
