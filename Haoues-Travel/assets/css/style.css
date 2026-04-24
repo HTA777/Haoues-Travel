@@ -1112,13 +1112,36 @@ main { display: block; }
   font-family: var(--font-arabic);
   font-style: normal;
   font-weight: 900;
-  background: linear-gradient(90deg, var(--gold-300), var(--gold-100), var(--gold-400));
+  /* Repeating gradient so the shimmer animation wraps seamlessly with no
+     visible "jump" at the end of each cycle. */
+  background: repeating-linear-gradient(
+    90deg,
+    var(--gold-300) 0%,
+    var(--gold-100) 25%,
+    var(--gold-400) 50%,
+    var(--gold-100) 75%,
+    var(--gold-300) 100%
+  );
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: goldShimmer 5s linear infinite;
+  animation: goldShimmerSeamless 6s linear infinite;
   padding-inline: 0.08em;   /* prevents the shimmer clip from trimming side letters */
+  /* Force the entire phrase into a single GPU-rasterized layer so connected
+     Arabic glyphs (e.g. ك→ي in "ملكية") share one continuous bounding box;
+     fixes the vertical seam at glyph junctions on WebKit. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transform: translateZ(0);
+  will-change: background-position, transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes goldShimmerSeamless {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
 }
 
 /* Subtitle: glowing dark glass card so the text is legible against the
