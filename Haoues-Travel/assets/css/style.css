@@ -590,6 +590,19 @@ a.btn {
   text-transform: uppercase;
 }
 
+/* Hide native number-input spin buttons on Chrome / Safari / Edge / Firefox.
+   Users type numbers normally; no up/down stepper UI. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 input[type="text"],
 input[type="email"],
 input[type="tel"],
