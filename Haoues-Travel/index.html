@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>حواس للسياحة والسفر | رحلات العمرة الفاخرة — Haoues Travel</title>
+  <meta name="description"
+    content="وكالة حواس للسياحة والسفر HTV - رائدون في تنظيم رحلات العمرة في الجزائر. تجربة روحانية متكاملة بأفضل الأسعار وأرقى الخدمات. عين البيضاء.">
+  <meta name="theme-color" content="#040810">
+  <meta name="keywords" content="عمرة, حج, حواس, سياحة, سفر, الجزائر, عين البيضاء, Umrah, Hajj, Haoues Travel, Algeria">
+  <meta name="robots" content="index,follow">
+  <meta name="author" content="Haoues Travel &amp; Voyages">
+  <link rel="canonical" href="https://haoues-travel.com/">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Haoues Travel &amp; Voyages">
+  <meta property="og:title" content="حواس للسياحة والسفر | رحلات العمرة الفاخرة">
+  <meta property="og:description"
+    content="وكالة حواس للسياحة والسفر — رائدون في تنظيم رحلات العمرة الفاخرة في الجزائر.">
+  <meta property="og:image" content="logo/Haous-Logo1.png">
+  <meta property="og:locale" content="ar_DZ">
+  <meta property="og:url" content="https://haoues-travel.com/">
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="حواس للسياحة والسفر | رحلات العمرة الفاخرة">
+  <meta name="twitter:description"
+    content="وكالة حواس للسياحة والسفر — رحلات عمرة فاخرة بأفضل الأسعار.">
+  <meta name="twitter:image" content="logo/Haous-Logo1.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- [IMPROVED] Added Amiri decorative Arabic font for ornate typography -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Playfair+Display:wght@700;900&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css?v=haoues-9.0">
+  <link rel="icon" type="image/png" href="logo/Haous-Logo2.png">
+  <link rel="apple-touch-icon" href="logo/Haous-Logo2.png">
+  <!-- Structured data: TravelAgency -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TravelAgency",
+    "name": "حواس للسياحة والسفر",
+    "alternateName": "Haoues Travel & Voyages",
+    "url": "https://haoues-travel.com/",
+    "logo": "https://haoues-travel.com/logo/Haous-Logo1.png",
+    "image": "https://haoues-travel.com/logo/Haous-Logo1.png",
+    "description": "وكالة أسفار متخصصة في تنظيم رحلات العمرة الفاخرة من الجزائر.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "عين البيضاء",
+      "addressCountry": "DZ"
+    },
+    "areaServed": "DZ",
+    "priceRange": "$$"
+  }
+  </script>
+</head>
+
+<body>
+  <!-- ═══════ BACKGROUND EFFECTS ═══════ -->
+  <canvas id="grid-canvas"></canvas>
+  <div class="aurora"></div>
+  <div class="mouse-glow" id="mouse-glow"></div>
+  <!-- ═══════ NAVIGATION ═══════ -->
+  <nav class="site-nav" id="site-nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">
+        <img src="logo/Haous-Logo2.png" alt="حواس للسياحة والسفر" class="nav-logo">
+        <!-- [IMPROVED] Decorative font + gold gradient applied to agency name -->
+        <span id="agency-name" class="agency-name-deco">حواس للسياحة والسفر</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#hero">الرئيسية</a></li>
+        <li><a href="#packages">البرامج</a></li>
+        <li><a href="#about">من نحن</a></li>
+        <li><a href="#contact">اتصل بنا</a></li>
+        <li><a href="#packages" class="nav-cta">احجز الآن</a></li>
+      </ul>
+      <button class="nav-hamburger" id="nav-hamburger" aria-label="القائمة" onclick="toggleMobileNav()">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <!-- Mobile Nav Overlay -->
+  <div class="mobile-nav-overlay" id="mobile-nav-overlay">
+    <a href="#hero" onclick="toggleMobileNav()">الرئيسية</a>
+    <a href="#packages" onclick="toggleMobileNav()">البرامج</a>
+    <a href="#about" onclick="toggleMobileNav()">من نحن</a>
+    <a href="#contact" onclick="toggleMobileNav()">اتصل بنا</a>
+    <a href="#packages" class="btn btn-p" style="margin-top:16px;" onclick="toggleMobileNav()">احجز الآن</a>
+  </div>
+  <main>
+    <div class="circle-bg circle-bg-1"></div>
+    <div class="circle-bg circle-bg-2"></div>
+    <!-- ═══════ SECTION 1: HERO ═══════ -->
+    <header id="hero" class="hero">
+      <div class="hero-content">
+        <!-- [IMPROVED] Decorative italic shimmer on hero subtitle span -->
+        <h1 class="hero-title">رحلة العمر <span class="hero-title-deco">بلمسة ملكية</span></h1>
+        <p class="hero-subtitle">حواس للسياحة والسفر.. حيث يلتقي الخشوع بالفخامة. اختبر أرقى مستويات الخدمة في رحلتك
+          الروحانية القادمة.</p>
+        <!-- [IMPROVED] CTA button with decorative bold font and pulse glow on hover -->
+        <a href="#packages" class="btn btn-p btn-pulse btn-cta-deco">احجز الآن 🚀</a>
+        <div class="stats-grid">
+          <div class="stat-item reveal">
+            <span class="stat-num" id="stat-pkgs" data-target="0">0</span>
+            <span class="stat-label">باقات متاحة</span>
+          </div>
+          <div class="stat-item reveal">
+            <span class="stat-num" data-target="5000">0</span>
+            <span class="stat-label">حاج سافر</span>
+          </div>
+          <div class="stat-item reveal">
+            <span class="stat-num" data-target="12">0</span>
+            <span class="stat-label">سنوات خبرة</span>
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- ═══════ SECTION 2: PACKAGES ═══════ -->
+    <section id="packages" class="section">
+      <!-- [IMPROVED] Decorative section title with SVG ornament underline animation -->
+      <h2 class="reveal section-title-deco">البرامج والعروض</h2>
+      <div class="reveal packages-toolbar">
+        <div class="filter-container">
+          <input type="text" id="public-pkg-search" placeholder="🔍 بحث عن باقة (عمرة، رمضان، VIP...)"
+            oninput="debounceRenderPackages()">
+          <!-- Horizontal scrollable pill filter (replaces dropdown) -->
+          <div id="public-pkg-filter-cards" class="pkg-filter-cards" role="tablist" aria-label="تصفية الباقات">
+            <button type="button" class="pkg-filter-card active" data-pkg="all"
+              onclick="selectPublicPackageFilterCard(this, 'all')">🏷️ كل العروض</button>
+          </div>
+          <!-- Hidden select retained for backward compatibility with renderPackages() -->
+          <select id="public-pkg-filter" style="display:none;" onchange="renderPackages()">
+            <option value="all">كل العروض 🕌</option>
+          </select>
+        </div>
+      </div>
+      <div id="pkg-loading" style="text-align: center; padding: 40px;">
+        <div class="grid">
+          <div class="skeleton skeleton-card"></div>
+          <div class="skeleton skeleton-card"></div>
+          <div class="skeleton skeleton-card"></div>
+        </div>
+      </div>
+      <div id="pkg-grid" class="grid">
+        <!-- Packages injected here -->
+      </div>
+    </section>
+    <!-- ═══════ SECTION 3: ABOUT ═══════ -->
+    <section id="about" class="section">
+      <div class="about-section reveal">
+        <div class="about-panel">
+          <h2 class="about-panel-title">لماذا تختار حواس؟</h2>
+          <p id="agency-desc" class="about-panel-text">
+            نحن لا ننظم رحلات فحسب، بل نصنع <strong>ذكريات روحانية خالدة</strong>. بفضل خبرتنا الطويلة، نضمن لكم:
+            <br><br>
+            ✨ فنادق من النخبة هي الأقرب لساحات الحرم. <br>
+            🎯 دقة متناهية في المواعيد وتنظيم التأشيرات. <br>
+            🤝 مرافقة إرشادية وتدريبية متكاملة لضيوف الرحمن. <br>
+            🛎️ خدمة عملاء متاحة على مدار الساعة لضمان راحتكم.
+          </p>
+        </div>
+      </div>
+    </section>
+    <!-- ═══════ SECTION 4: CONTACT ═══════ -->
+    <section id="contact" class="section contact-section">
+      <h2 class="reveal">تواصل معنا</h2>
+      <div class="contact-grid">
+        <div class="stat-item reveal contact-card">
+          <span class="stat-label contact-card-label">📞 الهاتف</span>
+          <div class="contact-phone-list">
+            <a href="tel:0673129022" class="contact-link">0673129022</a>
+            <a href="tel:0555607087" class="contact-link">0555607087</a>
+          </div>
+        </div>
+        <div class="stat-item reveal contact-card">
+          <span class="stat-label contact-card-label">📧 البريد الإلكتروني</span>
+          <span id="c-email" class="contact-email selectable">haoues.travel@gmail.com</span>
+        </div>
+        <div class="stat-item reveal contact-card contact-card--address">
+          <span class="stat-label contact-card-label">📍 العنوان</span>
+          <a href="https://www.google.com/maps/search/?api=1&query=35.792634,7.3810036" target="_blank"
+            class="contact-address" style="text-decoration:none; color:var(--text-muted);">حي الهناء 2 طريق خنشلة، عين
+            البيضاء، الجزائر 📍</a>
+        </div>
+        <div class="stat-item reveal contact-card">
+          <span class="stat-label contact-card-label">📱 تابعونا</span>
+          <div class="contact-phone-list">
+            <a href="https://web.facebook.com/haoues.travel" target="_blank" class="contact-link"
+              style="font-size:1rem; font-family:'Tajawal',sans-serif;">📘 فيسبوك — Haoues Travel</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <!-- ═══════ FOOTER ═══════ -->
+  <footer class="site-footer">
+    <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:20px;">
+      <img src="logo/Haous-Logo1.png" alt="HTV" style="height:60px; border-radius:10px; background:#fff; padding:3px;"
+        loading="lazy">
+    </div>
+    <p>© 2026 حواس للسياحة والسفر — Haoues Travel & Voyages، عين البيضاء، الجزائر. جميع الحقوق محفوظة.</p>
+    <!-- ═══════ ADMIN TOGGLE SWITCH ═══════ -->
+    <div id="admin-gate"
+      style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+      <!-- Toggle row -->
+      <div style="display: flex; align-items: center; gap: 14px; cursor: pointer;" onclick="toggleAdminGate()">
+        <span
+          style="color: var(--text-dim); font-size: 0.82rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">لوحة
+          الإدارة</span>
+        <!-- Switch -->
+        <div id="admin-switch" style="
+          width: 52px; height: 28px; border-radius: 14px;
+          background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+          position: relative; transition: background 0.3s;
+        ">
+          <div id="admin-switch-knob" style="
+            width: 20px; height: 20px; border-radius: 10px;
+            background: var(--text-dim); position: absolute;
+            top: 3px; right: 3px; transition: all 0.3s ease;
+          "></div>
+        </div>
+        <span style="font-size: 1.1rem;">⚙️</span>
+      </div>
+      <div id="admin-pass-row"
+        style="display: none; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+        <input type="password" id="admin-pass-input" placeholder="كلمة المرور"
+          style="padding: 10px 16px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; font-size: 0.95rem; text-align: center;"
+          onkeydown="if(event.key==='Enter') verifyAdminSwitch()">
+        <button onclick="verifyAdminSwitch()" class="btn btn-p" style="padding: 12px 24px;">دخول 🔓</button>
+        <span id="admin-pass-err" style="color: #FF3D00; font-size: 0.8rem; display: none;">❌ كلمة المرور خاطئة</span>
+      </div>
+    </div>
+  </footer>
+  <!-- ═══════ OFFER DETAIL MODAL ═══════ -->
+  <div id="modal-offer-detail" class="modal-overlay">
+    <div class="modal" style="max-width: 700px; padding: 0;">
+      <span class="modal-close" onclick="closeModal('modal-offer-detail')"
+        style="z-index: 100; background: rgba(0,0,0,0.5); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; top: 15px; left: 15px;">×</span>
+
+      <!-- Image Slider Header -->
+      <div id="offer-detail-slider-container" style="border-radius: 20px 20px 0 0; overflow:hidden; min-height:220px;">
+      </div>
+      <!-- Details Body -->
+      <div style="padding: 24px;">
+        <h2 id="offer-detail-title"
+          style="margin-bottom: 10px; color: var(--primary-light); font-family: 'Playfair Display', serif; font-size: 1.8rem;">
+        </h2>
+
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px;">
+          <span id="offer-detail-price" style="font-size: 1.4rem; font-weight: bold; color: var(--text);"></span>
+          <span id="offer-detail-status" class="badge"></span>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+          <div class="stat-item"
+            style="padding: 12px; margin: 0; animation: none; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px;">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">📅 التاريخ</span>
+            <strong id="offer-detail-dates" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div class="stat-item"
+            style="padding: 12px; margin: 0; animation: none; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px;">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">🏨 الفندق</span>
+            <strong id="offer-detail-hotel" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:16px; display:flex; align-items:center; gap:16px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="width:40px; height:40px; border-radius:12px; background:rgba(48,154,175,0.1); color:#309aaf; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🛫</div>
+            <strong id="offer-detail-departure" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:16px; display:flex; align-items:center; gap:16px; border:1px solid rgba(255,255,255,0.05);">
+            <div style="width:40px; height:40px; border-radius:12px; background:rgba(48,154,175,0.1); color:#309aaf; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🛬</div>
+            <strong id="offer-detail-return" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); padding:16px; border-radius:16px; display:flex; align-items:center; gap:16px; border:1px solid rgba(255,255,255,0.05);">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">✈️ الطيران</span>
+            <strong id="offer-detail-airline" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div class="stat-item"
+            style="padding: 12px; margin: 0; animation: none; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px;">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">🍽️ الإطعام</span>
+            <strong id="offer-detail-food" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div class="stat-item"
+            style="padding: 12px; margin: 0; animation: none; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px;">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">📍 مسافة الحرم</span>
+            <strong id="offer-detail-distance" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+          <div class="stat-item"
+            style="padding: 12px; margin: 0; animation: none; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:8px;">
+            <span class="stat-label" style="font-size:0.75rem; color:var(--text-muted);">📄 الوثائق المطلوبة</span>
+            <strong id="offer-detail-docs" style="font-size:0.95rem; color:#fff;"></strong>
+          </div>
+        </div>
+        <div style="margin-bottom: 24px;" id="offer-detail-rooms-container">
+          <h4 style="color: var(--text-muted); margin-bottom: 8px;">🛏️ تفاصيل الغرف</h4>
+          <div id="offer-detail-rooms" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+        <div style="margin-bottom: 24px;" id="offer-detail-desc-container">
+          <h4 style="color: var(--text-muted); margin-bottom: 8px;">📝 تفاصيل إضافية</h4>
+          <p id="offer-detail-desc"
+            style="color: var(--text); line-height: 1.6; font-size: 0.95rem; white-space: pre-line; background: rgba(255,255,255,0.02); padding: 16px; border-radius: 12px; border: 1px solid var(--glass-border);">
+          </p>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 30px;">
+          <button id="offer-detail-book-btn" class="btn btn-p"
+            style="flex: 2; padding: 14px; font-size: 1.1rem;"></button>
+          <a id="offer-detail-map-btn" href="#" target="_blank" class="btn btn-s"
+            style="flex: 1; padding: 14px; text-decoration: none; text-align: center; display: none;">🗺️ خريطة
+            الفندق</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ═══════ BOOKING MODAL ═══════ -->
+  <div id="modal-booking" class="modal-overlay">
+    <div class="modal">
+      <span class="modal-close" onclick="closeModal('modal-booking')">×</span>
+      <h2 id="modal-title"
+        style="margin-bottom: 30px; color: var(--primary-light); text-align: center; font-family: 'Playfair Display', serif;">
+        احجز مكانك في الباقة</h2>
+      <!-- Stepper -->
+      <div class="booking-steps">
+        <div id="step-dot-1" class="step-dot active">1</div>
+        <div id="step-dot-2" class="step-dot">2</div>
+      </div>
+      <form id="form-booking">
+        <input type="hidden" id="b-package" name="package">
+        <!-- STEP 1: IDENTITY & DUPLICATE CHECK -->
+        <div id="booking-step-1">
+          <div class="form-row">
+            <div class="field"><label class="label">الاسم</label><input type="text" id="b-fname" name="firstName"
+                required></div>
+            <div class="field"><label class="label">اللقب</label><input type="text" id="b-lname" name="lastName"
+                required></div>
+          </div>
+          <div class="field">
+            <label class="label">رقم الهاتف (05, 06, 07)</label>
+            <input type="tel" id="b-phone" name="phone" placeholder="مثال: 0555123456" maxlength="10"
+              pattern="^(05|06|07)[0-9]{8}$" title="يجب أن يبدأ بـ 05 أو 06 أو 07 ويتكون من 10 أرقام بالضبط"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,10)" required>
+          </div>
+          <button type="button" id="btn-next-step" class="btn btn-p" style="width: 100%;"
+            onclick="verifyBookingStep1()">التالي ➡️</button>
+          <div id="step1-loading" style="display:none; text-align:center; padding:10px; color:var(--text-muted);">جاري
+            التحقق من البيانات...</div>
+        </div>
+        <!-- STEP 2: CONFIGURATION & PRICING -->
+        <div id="booking-step-2"
+          style="display:none; margin-top:15px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+
+          <!-- Room Type — Full Width -->
+          <div class="field" style="margin-bottom: 20px;">
+            <label class="label" style="font-size:0.88rem; margin-bottom:10px;">نوع الغرفة</label>
+            <div id="room-chips" class="room-cards-grid"></div>
+            <input type="hidden" id="b-room" name="roomType" required>
+          </div>
+          <!-- Pax -->
+          <div class="field" style="margin-bottom: 20px;">
+            <label class="label">عدد الأشخاص</label>
+            <input type="number" id="b-pax" name="pax" value="1" min="1" oninput="updateBookingTotalPrice()" required>
+          </div>
+          <div style="font-size: 1.1rem; text-align: center; margin-bottom: 20px; color: var(--text-main);">
+            <strong>الإجمالي: </strong><span id="b-total-price" style="color: var(--primary-light); font-weight: bold; font-size: 1.3rem;"></span>
+          </div>
+          <input type="hidden" id="b-total-price-submit" name="totalPrice">
+          <button type="submit" id="btn-submit-book" class="btn btn-p" style="width: 100%;">تأكيد الطلب</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- ═══════ ADMIN PANEL ═══════ -->
+  <div id="admin-panel">
+    <div class="admin-header">
+      <div class="admin-header-title">
+        <img src="logo/Haous-Logo1.png" alt="Haoues Travel" class="admin-header-logo">
+        <h3>لوحة تحكم الوكالة</h3>
+      </div>
+      <!-- Quick Stats Bar -->
+      <div id="admin-quick-stats" class="admin-quick-stats">
+        <!-- Injected via JS -->
+      </div>
+      <div class="admin-header-actions">
+        <div class="admin-tabs" style="margin: 0;">
+          <div class="tab active" onclick="switchTab('bookings')">الحجوزات</div>
+          <div class="tab" onclick="switchTab('packages')">العروض</div>
+        </div>
+        <button class="btn btn-s"
+          onclick="document.getElementById('admin-panel').style.display='none'; _lockScroll(false);"
+          style="padding: 8px 20px; font-size: 0.85rem;">خروج ✕</button>
+      </div>
+    </div>
+    <div class="admin-body">
+      <!-- Bookings Tab -->
+      <div id="tab-bookings" class="tab-content">
+        <!-- [IMPROVED] Main toolbar row -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: center;">
+          <input type="text" id="booking-search" placeholder="🔍 بحث بالاسم أو الهاتف..."
+            style="max-width: 260px; flex: 1;">
+          <!-- [IMPROVED] Status chips -->
+          <div class="custom-chips-group" id="booking-status-chips" style="flex:1; min-width: 200px;">
+            <button type="button" class="chip-btn active" data-val="all"
+              onclick="selectStatusFilter('all')">الكل</button>
+            <button type="button" class="chip-btn" data-val="لم يتم التأكيد"
+              onclick="selectStatusFilter('لم يتم التأكيد')">⏳ معلق</button>
+            <button type="button" class="chip-btn" data-val="تم التأكيد" onclick="selectStatusFilter('تم التأكيد')">✅
+              مؤكد</button>
+          </div>
+          <!-- Hidden status select (used internally) -->
+          <select id="booking-status-filter" style="display:none;" onchange="applyBookingFilters()">
+            <option value="all">كل الحالات</option>
+            <option value="لم يتم التأكيد">⏳ لم يتم التأكيد</option>
+            <option value="تم التأكيد">✅ تم التأكيد</option>
+          </select>
+          <div style="display: flex; gap: 8px; margin-right: auto;">
+            <button class="btn btn-outline" onclick="exportData('xlsx')" title="تصدير Excel"
+              style="padding:8px 12px; font-size:0.8rem;">📊 Excel</button>
+            <button class="btn btn-outline" onclick="exportData('pdf')" title="تصدير PDF"
+              style="padding:8px 12px; font-size:0.8rem;">📄 PDF</button>
+            <button class="btn btn-outline" onclick="exportData('docx')" title="تصدير Word"
+              style="padding:8px 12px; font-size:0.8rem;">📝 Word</button>
+          </div>
+        </div>
+        <!-- [IMPROVED] Package filter: card-based UI instead of dropdown -->
+        <div style="margin-bottom: 16px;">
+          <div
+            style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px; font-weight:700; letter-spacing:1px;">
+            تصفية حسب الباقة:</div>
+          <div id="admin-package-filter-cards" class="pkg-filter-cards">
+            <button class="pkg-filter-card active" data-pkg="all" onclick="selectPackageFilterCard(this, 'all')">🕌 كل
+              العروض</button>
+            <!-- Populated via JS -->
+          </div>
+          <!-- Hidden select kept for backwards-compat with getFilteredBookings() -->
+          <select id="admin-package-filter" style="display:none;" onchange="applyBookingFilters()">
+            <option value="all">كل العروض 🕌</option>
+          </select>
+        </div>
+        <!-- [IMPROVED] Two-column layout: Calendar on right, table on left -->
+        <div class="bookings-layout">
+          <!-- Bookings Table -->
+          <div style="flex:1; overflow-x: auto; border-radius: var(--radius-md);">
+            <table id="table-bookings" style="width:100%;">
+              <thead>
+                <tr>
+                  <th style="min-width:130px;">الاسم</th>
+                  <th style="min-width:110px;">الهاتف</th>
+                  <th style="min-width:150px;">الباقة</th>
+                  <th style="min-width:60px;">أفراد</th>
+                  <th style="min-width:100px;">الغرفة</th>
+                  <th style="min-width:110px;">الحالة</th>
+                  <th style="min-width:90px;">التاريخ</th>
+                  <th style="min-width:60px;">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="list-bookings"></tbody>
+            </table>
+          </div>
+        </div><!-- /.bookings-layout -->
+      </div>
+      <!-- Packages Tab -->
+      <div id="tab-packages" class="tab-content" style="display: none;">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-p" onclick="showManager('package')">+ عرض جديد</button>
+          <input type="text" id="admin-pkg-list-filter" placeholder="🔍 بحث في الباقات..."
+            oninput="renderAdminPackages()"
+            style="flex: 1; min-width: 200px; padding: 12px 16px; background:rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: #fff;">
+        </div>
+        <div id="list-mgr-packages"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ═══════ ADMIN BOOKING DETAILS MODAL ═══════ -->
+  <div id="admin-booking-modal" class="modal-overlay" style="z-index: 6000;"
+    onclick="if(event.target.id==='admin-booking-modal') closeModal('admin-booking-modal')">
+    <div class="modal" style="max-width: 500px;">
+      <span class="modal-close" onclick="closeModal('admin-booking-modal')">×</span>
+      <h2 style="margin-bottom: 20px; font-size: 1.5rem; color: var(--primary-light);">📄 تفاصيل الحجز</h2>
+      <div id="admin-booking-details-content" style="display: grid; gap: 12px; font-size: 0.95rem; color: #fff;">
+        <!-- Injected via JS -->
+      </div>
+      <div style="margin-top: 24px; text-align: left;">
+        <button class="btn btn-outline" onclick="closeModal('admin-booking-modal')">إغلاق</button>
+      </div>
+    </div>
+  </div>
+  <!-- Manager Modals (Dynamic) -->
+  <div id="modal-manager" class="modal-overlay" style="z-index: 6000;">
+    <div class="modal" style="max-width: 800px;">
+      <span class="modal-close" onclick="closeModal('modal-manager')">×</span>
+      <h2 id="mgr-title" style="font-family: 'Playfair Display', serif;">إدارة العنصر</h2>
+      <form id="form-manager" class="manager-form">
+        <!-- Injected via JS -->
+      </form>
+    </div>
+  </div>
+  <!-- Scroll to Top -->
+  <button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+    aria-label="العودة لأعلى">↑</button>
+  <!-- WhatsApp Float -->
+  <a href="https://wa.me/213673129022" target="_blank" class="whatsapp-float" id="whatsapp-float"
+    aria-label="تواصل عبر واتساب">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+      <path
+        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  </a>
+  <!-- Lightbox Gallery -->
+  <div id="lightbox-overlay" class="lightbox-overlay"
+    onclick="if(event.target.id==='lightbox-overlay') closeLightbox();">
+    <button class="lightbox-close" onclick="closeLightbox()">×</button>
+    <div class="lightbox-pkg-title" id="lightbox-title">الصور</div>
+    <div class="lightbox-stage">
+      <button class="lightbox-nav lb-prev" onclick="lightboxPrev()">&#8249;</button>
+      <div class="lightbox-frame" id="lightbox-frame">
+        <div class="lightbox-track" id="lightbox-track">
+        </div><!-- /lightbox-track -->
+      </div><!-- /lightbox-frame -->
+      <button class="lightbox-nav lb-next" onclick="lightboxNext()">&#8250;</button>
+    </div><!-- /lightbox-stage -->
+    <div class="lightbox-bottom">
+      <div class="lightbox-dots" id="lightbox-dots"></div>
+      <div class="lightbox-counter" id="lightbox-counter">1 / 1</div>
+    </div>
+  </div><!-- /lightbox-overlay -->
+  
+  <!-- Global Scripts — xlsx is lazy-loaded from script.js only when admin exports -->
+  <script src="assets/js/script.js?v=haoues-9.0" defer></script>
+</body>
+
+</html>
