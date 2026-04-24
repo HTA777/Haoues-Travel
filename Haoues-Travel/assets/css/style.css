@@ -377,10 +377,10 @@ p, li, label { line-height: var(--leading-arabic); }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Hero background image (Kaaba + Clock Tower photograph/illustration).
-   Covers the viewport behind the hero, slowly drifts + zooms (ken-burns),
-   and blends into the page background at the bottom via a gradient
-   mask so the join to the rest of the page is seamless.
+   Hero background image (Kaaba + Clock Tower).
+   Fills the full hero viewport sharply, slowly drifts (ken-burns),
+   and fades into the page background at the bottom via a mask so
+   the transition to the rest of the page is seamless.
    ═══════════════════════════════════════════════════════════════ */
 .hero-skyline {
   position: absolute;
@@ -388,41 +388,61 @@ p, li, label { line-height: var(--leading-arabic); }
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
-  /* Tint darkens the photo so light text on top stays readable. */
-  background:
-    radial-gradient(ellipse at 50% 40%, rgba(6,13,26,0.25) 0%, rgba(6,13,26,0.55) 60%, rgba(6,13,26,0.85) 100%);
-  /* Fade into the page bg: visible at top, fully transparent at bottom. */
+  /* Fade into the page bg: fully opaque at top, clear at bottom. */
   -webkit-mask-image: linear-gradient(to bottom,
     rgba(0,0,0,1) 0%,
-    rgba(0,0,0,1) 55%,
-    rgba(0,0,0,0.75) 75%,
-    rgba(0,0,0,0.35) 90%,
+    rgba(0,0,0,1) 60%,
+    rgba(0,0,0,0.85) 78%,
+    rgba(0,0,0,0.4) 92%,
     rgba(0,0,0,0) 100%);
           mask-image: linear-gradient(to bottom,
     rgba(0,0,0,1) 0%,
-    rgba(0,0,0,1) 55%,
-    rgba(0,0,0,0.75) 75%,
-    rgba(0,0,0,0.35) 90%,
+    rgba(0,0,0,1) 60%,
+    rgba(0,0,0,0.85) 78%,
+    rgba(0,0,0,0.4) 92%,
     rgba(0,0,0,0) 100%);
 }
-.hero-skyline picture { position: absolute; inset: 0; z-index: -1; display: block; }
+.hero-skyline picture { position: absolute; inset: 0; display: block; }
 .hero-skyline-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center center;
-  opacity: 0.55;
-  filter: saturate(0.9) contrast(1.05);
-  animation: heroKenBurns 40s ease-in-out infinite alternate;
+  opacity: 0.9;
+  animation: heroKenBurns 50s ease-in-out infinite alternate;
   will-change: transform;
+  backface-visibility: hidden;
+  transform-origin: center center;
+  image-rendering: auto;
+}
+/* Dark scrim over the image so light hero text stays readable without
+   washing the photo out. Lives above the image, below the content. */
+.hero-skyline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom,
+      rgba(6,13,26,0.45) 0%,
+      rgba(6,13,26,0.30) 35%,
+      rgba(6,13,26,0.55) 100%),
+    radial-gradient(ellipse at 50% 35%, rgba(6,13,26,0) 0%, rgba(6,13,26,0.35) 80%);
 }
 @keyframes heroKenBurns {
-  0%   { transform: scale(1.05) translate(0, 0); }
-  50%  { transform: scale(1.10) translate(-1.5%, -1%); }
-  100% { transform: scale(1.07) translate(1.2%, 0.5%); }
+  0%   { transform: scale(1.02) translate(0, 0); }
+  50%  { transform: scale(1.04) translate(-0.8%, -0.5%); }
+  100% { transform: scale(1.03) translate(0.6%, 0.3%); }
 }
 @media (max-width: 768px) {
-  .hero-skyline-img { opacity: 0.55; }
+  .hero-skyline-img { opacity: 0.85; }
+  .hero-skyline::after {
+    background:
+      linear-gradient(to bottom,
+        rgba(6,13,26,0.35) 0%,
+        rgba(6,13,26,0.25) 40%,
+        rgba(6,13,26,0.60) 100%);
+  }
 }
 
 @keyframes auroraDrift {

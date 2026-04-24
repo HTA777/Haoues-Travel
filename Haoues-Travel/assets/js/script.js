@@ -1701,7 +1701,9 @@ window.addMgrImage = async (input, idx) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'uploadImage',
-        pass: sessionStorage.getItem('admin_token') || '',
+        // Backend (code.gs) reads the admin credential from `key` only —
+        // matches the `pass` → `key` migration in gasFetch.
+        key: sessionStorage.getItem('admin_token') || '',
         filename: file.name,
         base64: compressedB64
       })
@@ -1728,6 +1730,9 @@ window.addMgrImage = async (input, idx) => {
     let msg = err.message || 'حاول مجدداً';
     if (msg.includes('ADMIN_KEY')) msg = 'خطأ في مفتاح الإدارة. سجّل الدخول مجدداً.';
     showToast(`❌ فشل رفع الصورة: ${msg}`, 'error');
+    // Hide the stale error indicator after a short delay so it doesn't
+    // obscure the upload slots on the next attempt.
+    setTimeout(() => { if (progressDiv) progressDiv.style.display = 'none'; }, 3000);
   } finally {
     input.value = '';
   }
