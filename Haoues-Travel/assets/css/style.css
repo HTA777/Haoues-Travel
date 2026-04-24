@@ -221,6 +221,9 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 body {
@@ -263,6 +266,7 @@ body::after {
 }
 
 main, header, section, footer, nav { position: relative; z-index: var(--z-raised); }
+main { overflow: clip; overflow-x: hidden; }
 
 img, svg { max-width: 100%; display: block; }
 
@@ -292,20 +296,20 @@ p, li, label { line-height: var(--leading-arabic); }
 
 ::selection { background: var(--gold-glow-strong); color: var(--bg-void); }
 
-/* Skip to content (a11y) */
+/* Skip to content (a11y) — clipped offscreen, brought back on focus */
 .skip-link {
-  position: absolute;
-  inset-inline-start: -999px;
-  top: 0;
+  position: fixed;
+  top: -100px;
+  inset-inline-start: var(--space-4);
   background: var(--gold-400);
   color: var(--bg-void);
   padding: var(--space-3) var(--space-5);
   border-radius: var(--radius-sm);
   font-weight: var(--w-bold);
   z-index: var(--z-toast);
+  transition: top var(--d-mid) var(--ease-out-expo);
 }
 .skip-link:focus-visible {
-  inset-inline-start: var(--space-4);
   top: var(--space-4);
   outline: 3px solid var(--gold-400);
   outline-offset: 2px;
@@ -324,7 +328,10 @@ p, li, label { line-height: var(--leading-arabic); }
 
 .aurora {
   position: fixed;
-  inset: -20%;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 1;
   pointer-events: none;
   background:
@@ -966,7 +973,10 @@ main { display: block; }
 /* Mobile overlay */
 .mobile-nav-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(6, 13, 26, 0.96);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
@@ -976,15 +986,17 @@ main { display: block; }
   align-items: center;
   justify-content: center;
   gap: var(--space-5);
+  padding: var(--space-4);
   opacity: 0;
   pointer-events: none;
-  transform: translateX(20px);
+  transform: translateY(-20px);
   transition: opacity var(--d-slow) var(--ease-out-expo),
               transform var(--d-slow) var(--ease-out-expo);
+  overflow-y: auto;
 }
 .mobile-nav-overlay.active {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 .mobile-nav-overlay a {
