@@ -198,6 +198,31 @@ function normalizeItem(item) {
   const checkBool = (val) => val === true || val === "TRUE" || String(val).toLowerCase() === "true";
   if (normalized.published !== undefined) normalized.published = checkBool(normalized.published);
   if (normalized.active !== undefined) normalized.active = checkBool(normalized.active);
+
+  // Images normalization — accept JSON array, CSV/pipe/newline separated, legacy
+  // single `image` field, or literal "undefined" strings the sheet may contain.
+  // After normalization: item.images is ALWAYS an array of URLs (possibly empty),
+  // and item.image is the first URL (for legacy single-image consumers).
+  const parseImages = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(u => typeof u === 'string' && u.trim() && u.trim().toLowerCase() !== 'undefined');
+    const s = String(raw).trim();
+    if (!s || s.toLowerCase() === 'undefined' || s === '[]' || s === '""') return [];
+    if (s.startsWith('[')) {
+      try {
+        const arr = JSON.parse(s);
+        if (Array.isArray(arr)) return arr.filter(u => typeof u === 'string' && u.trim());
+      } catch (e) { /* fall through */ }
+    }
+    return s.split(/[,;\n|]+/).map(u => u.trim()).filter(u => u && u.toLowerCase() !== 'undefined');
+  };
+  const imgList = parseImages(normalized.images).concat(
+    normalized.image && !parseImages(normalized.images).length ? parseImages(normalized.image) : []
+  );
+  // Deduplicate while preserving order
+  const seen = new Set();
+  normalized.images = imgList.filter(u => (seen.has(u) ? false : (seen.add(u), true))).slice(0, 6);
+  normalized.image = normalized.images[0] || '';
   return normalized;
 }
 /* ═══════════════════════════════════════════════════════
@@ -490,16 +515,25 @@ function renderPackages() {
         ].filter(Boolean).join('<span style="color:var(--border-mid);">•</span>')
       : `<span>📅 ${escapeHtml(formatDate(item.start))}</span>`;
     const staggerClass = `stagger-${Math.min(index + 1, 5)}`;
+    const heroImg = item.images && item.images[0] ? item.images[0] : '';
+    const heroImgHtml = heroImg
+      ? `<div class="card-hero">
+           <img src="${escapeHtml(heroImg)}" alt="${nameHtml}" loading="lazy" referrerpolicy="no-referrer">
+           <span class="badge card-hero-badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
+           ${item.images.length > 1 ? `<span class="card-hero-count">📸 ${item.images.length}</span>` : ''}
+         </div>`
+      : '';
     return `
       <article class="card reveal ${staggerClass}" role="listitem" tabindex="0"
         onclick="window.openOfferDetailModal('${nameJs}')"
         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.openOfferDetailModal('${nameJs}');}"
         aria-label="${nameHtml} — عرض التفاصيل">
+        ${heroImgHtml}
         <div class="card-body">
-          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-5);">
+          ${heroImg ? '' : `<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-5);">
             <div style="font-size:2.4rem; line-height:1;" aria-hidden="true">🕋</div>
             <span class="badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
-          </div>
+          </div>`}
           <h3 style="font-family:var(--font-display); font-size:var(--text-lg); color:var(--gold-200); margin-bottom:var(--space-3); line-height:var(--leading-snug);">${nameHtml}</h3>
 
           <div style="display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-4); font-size:var(--text-sm); color:var(--text-secondary); align-items:center;">
@@ -674,16 +708,48 @@ window.verifyBookingStep1 = async () => {
   populateRoomOptions();
   updateBookingTotalPrice();
 };
+function parseRoomsField(raw) {
+  // Returns an array of { name, price } — price may be undefined.
+  if (!raw) return [];
+  // Already an array of objects?
+  if (Array.isArray(raw)) {
+    return raw
+      .map(r => (typeof r === 'string' ? { name: r.trim() } : { name: String(r.name || '').trim(), price: Number(r.price) || undefined }))
+      .filter(r => r.name);
+  }
+  const s = String(raw).trim();
+  if (!s) return [];
+  // JSON array form
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        return arr
+          .map(r => (typeof r === 'string' ? { name: r.trim() } : { name: String(r.name || '').trim(), price: Number(r.price) || undefined }))
+          .filter(r => r.name);
+      }
+    } catch (e) { /* fall through */ }
+  }
+  // Comma-separated or whitespace-separated plain text (e.g. "ثنائية، ثلاثية" or "غرفة ثنائية ثلاثية رباعية")
+  const stripped = s.replace(/^\s*غرف?\s+/, '').replace(/^\s*غرفة\s+/, '');
+  const parts = /[،,]/.test(stripped)
+    ? stripped.split(/[،,]/)
+    : stripped.split(/\s+/);
+  return parts.map(p => ({ name: p.trim() })).filter(r => r.name);
+}
+
 function populateRoomOptions() {
   const container = document.getElementById('room-chips');
   const hiddenInput = document.getElementById('b-room');
   if (!container || !hiddenInput || !currentBookingPackage) return;
-  const roomText = currentBookingPackage.rooms || "ثنائية، ثلاثية، رباعية";
-  const rooms = roomText.split(/[،,]/).map(r => r.trim()).filter(Boolean);
-  container.innerHTML = rooms
-    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" style="min-height:60px; font-size:var(--text-sm);" onclick="selectRoomFilter('${escapeJsString(r)}')">🛏️ ${escapeHtml(r)}</button>`)
+  const rooms = parseRoomsField(currentBookingPackage.rooms);
+  const list = rooms.length ? rooms : [{ name: 'ثنائية' }, { name: 'ثلاثية' }, { name: 'رباعية' }];
+  // Expose parsed rooms on the current package so pricing logic can use per-room prices.
+  currentBookingPackage._roomsParsed = list;
+  container.innerHTML = list
+    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" style="min-height:60px; font-size:var(--text-sm);" onclick="selectRoomFilter('${escapeJsString(r.name)}')">🛏️ ${escapeHtml(r.name)}</button>`)
     .join('');
-  hiddenInput.value = rooms[0] || '';
+  hiddenInput.value = list[0].name || '';
 }
 window.selectRoomFilter = function (val) {
   document.querySelectorAll('#room-chips .chip-btn').forEach(btn => {
@@ -704,8 +770,13 @@ window.updateBookingTotalPrice = () => {
   const roomType = document.getElementById('b-room').value;
   const priceDisplay = document.getElementById('b-total-price');
   let basePrice = currentBookingPackage.price;
-  // Adaptive pricing logic
-  if (roomType.includes('ثنائية')) basePrice = currentBookingPackage.priceDouble || basePrice;
+  // Adaptive pricing logic — prefer per-room prices from JSON rooms array, then
+  // fall back to discrete priceDouble/Triple/... fields, then the package base price.
+  const parsed = currentBookingPackage._roomsParsed || parseRoomsField(currentBookingPackage.rooms);
+  const roomMatch = parsed.find(r => r.name === roomType || (roomType && r.name && roomType.includes(r.name)));
+  if (roomMatch && roomMatch.price) {
+    basePrice = roomMatch.price;
+  } else if (roomType.includes('ثنائية')) basePrice = currentBookingPackage.priceDouble || basePrice;
   else if (roomType.includes('ثلاثية')) basePrice = currentBookingPackage.priceTriple || basePrice;
   else if (roomType.includes('رباعية')) basePrice = currentBookingPackage.priceQuad || basePrice;
   else if (roomType.includes('خماسية')) basePrice = currentBookingPackage.priceQuint || basePrice;
@@ -1045,13 +1116,13 @@ window.showManager = (type, rowIndex = null) => {
           <div class="full-w field"><label class="label">رابط خريطة الفندق</label><input type="url" name="hotelMap" value="${item ? item.hotelMap : ''}"></div>
 
           <div class="full-w field">
-            <label class="label">صورة الفندق (رفع مباشر إلى Google Drive)</label>
-            <input type="file" id="mgr-file" accept="image/*" onchange="previewMgrImage(this)">
-            <input type="hidden" name="image" value="${item ? item.image : ''}">
-            <div id="mgr-img-preview" style="margin-top:10px;">${item?.image ? `<img src="${item.image}" style="width:100%; max-height:150px; object-fit:cover; border-radius:12px; border:1px solid var(--glass-border);">` : ''}</div>
-            <div id="mgr-upload-progress" style="display:none; margin-top:8px;">
+            <label class="label">صور الفندق والخدمات (حتى 6 صور، رفع مباشر إلى Google Drive)</label>
+            <input type="hidden" name="images" id="mgr-images-hidden" value='${item?.images?.length ? escapeHtml(JSON.stringify(item.images)) : "[]"}'>
+            <div id="mgr-img-slots" class="mgr-img-slots"></div>
+            <small style="display:block; margin-top:8px; color:var(--text-muted);">💡 انقر على المربع لرفع صورة. يمكنك حذف صورة بالنقر على الزر ×.</small>
+            <div id="mgr-upload-progress" style="display:none; margin-top:10px;">
               <div style="background:rgba(255,255,255,0.06); border-radius:8px; overflow:hidden; height:4px;">
-                <div id="mgr-progress-bar" style="width:0%; height:100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius:8px; transition: width 0.3s;"></div>
+                <div id="mgr-progress-bar" style="width:0%; height:100%; background: linear-gradient(90deg, var(--gold-400), var(--teal-400)); border-radius:8px; transition: width 0.3s;"></div>
               </div>
               <small id="mgr-progress-text" style="color:var(--text-muted); margin-top:4px; display:block;">جاري الرفع...</small>
             </div>
@@ -1073,6 +1144,11 @@ window.showManager = (type, rowIndex = null) => {
           </button>
         `;
   }
+  // Initialize image slots for this manager session
+  if (type === 'package') {
+    window._mgrImages = Array.isArray(item?.images) ? item.images.slice(0, 6) : [];
+    renderMgrImageSlots();
+  }
   // Form submission handler
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1084,60 +1160,10 @@ window.showManager = (type, rowIndex = null) => {
     btnLoading.style.display = 'inline';
     const fd = new FormData(form);
     const payload = Object.fromEntries(fd.entries());
-    const fileInput = document.getElementById('mgr-file');
-    // Step 1: Upload image if selected
-    if (fileInput && fileInput.files[0]) {
-      btnLoading.textContent = '📤 جاري ضغط ورفع الصورة...';
-      const progressDiv = document.getElementById('mgr-upload-progress');
-      const progressBar = document.getElementById('mgr-progress-bar');
-      const progressText = document.getElementById('mgr-progress-text');
-      if (progressDiv) progressDiv.style.display = 'block';
-      if (progressBar) progressBar.style.width = '10%';
-      if (progressText) progressText.textContent = '⏳ جاري ضغط الصورة...';
-      try {
-        const compressedB64 = await compressAndConvert(fileInput.files[0], 1200, 0.8);
-        if (progressBar) progressBar.style.width = '40%';
-        if (progressText) progressText.textContent = '📤 جاري رفع الصورة إلى Google Drive...';
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'uploadImage',
-            pass: sessionStorage.getItem('admin_token') || '',
-            filename: fileInput.files[0].name,
-            base64: compressedB64
-          })
-        });
-        if (progressBar) progressBar.style.width = '80%';
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `خطأ في الخادم: ${res.status}`);
-        }
-        const upRes = await res.json();
-        if (upRes.url) {
-          payload.image = upRes.url;
-          if (progressBar) progressBar.style.width = '100%';
-          if (progressText) progressText.textContent = '✅ تم رفع الصورة بنجاح!';
-          showToast('✅ تم رفع الصورة بنجاح', 'success');
-        } else {
-          throw new Error(upRes.error || 'لم يتم الحصول على رابط الصورة');
-        }
-      } catch (uploadErr) {
-        console.error('Image upload failed:', uploadErr);
-        if (progressBar) progressBar.style.width = '0%';
-        if (progressText) progressText.textContent = '❌ فشل الرفع';
-
-        // Final fallback for the specific error "ADMIN_KEY is not defined"
-        let msg = uploadErr.message;
-        if (msg.includes('ADMIN_KEY')) msg = "خطأ في مفتاح الإدارة. يرجى تسجيل الدخول مجدداً.";
-
-        showToast(`❌ فشل رفع الصورة: ${msg || 'حاول مجدداً'}`, 'error');
-        subBtn.disabled = false;
-        btnText.style.display = 'inline';
-        btnLoading.style.display = 'none';
-        return;
-      }
-    }
+    // Use the accumulated image URLs (already uploaded one-by-one via slot widget).
+    const imagesArr = Array.isArray(window._mgrImages) ? window._mgrImages.filter(Boolean).slice(0, 6) : [];
+    payload.image = imagesArr[0] || '';
+    payload.images = JSON.stringify(imagesArr);
     // Step 2: Prepare row values for Google Sheets
     btnLoading.textContent = '💾 جاري حفظ البيانات...';
     let values = [
@@ -1158,7 +1184,7 @@ window.showManager = (type, rowIndex = null) => {
       payload.food || '',           // FOOD (14)
       payload.hotelMap || '',       // HOTEL_MAP (15)
       payload.description || '',    // DESCRIPTION (16)
-      payload.image || '',          // IMAGES (17)
+      payload.images || '[]',       // IMAGES (17) — JSON array of up to 6 URLs
       payload.travelStart || '',    // TRAVEL_START (18)
       payload.travelEnd || ''       // TRAVEL_END (19)
     ];
@@ -1533,26 +1559,99 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 400);
   }, 4000);
 }
-/* ─── Image Preview in Manager Modal ─── */
-window.previewMgrImage = (input) => {
-  const previewDiv = document.getElementById('mgr-img-preview');
-  if (!previewDiv) return;
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('⚠️ حجم الصورة كبير جداً (الحد الأقصى 5MB). سيتم ضغطها تلقائياً عند الرفع.', 'info');
+/* ─── Multi-image Upload (up to 6) in Manager Modal ─── */
+const MGR_MAX_IMAGES = 6;
+
+function renderMgrImageSlots() {
+  const wrap = document.getElementById('mgr-img-slots');
+  const hidden = document.getElementById('mgr-images-hidden');
+  if (!wrap) return;
+  const imgs = Array.isArray(window._mgrImages) ? window._mgrImages : [];
+  let html = '';
+  for (let i = 0; i < MGR_MAX_IMAGES; i++) {
+    const url = imgs[i];
+    if (url) {
+      html += `
+        <div class="mgr-img-slot filled" data-slot="${i}">
+          <img src="${escapeHtml(url)}" alt="صورة ${i + 1}" loading="lazy">
+          <button type="button" class="mgr-img-remove" onclick="removeMgrImage(${i})" aria-label="حذف الصورة">×</button>
+          <span class="mgr-img-badge">${i + 1}</span>
+        </div>`;
+    } else {
+      html += `
+        <label class="mgr-img-slot empty" data-slot="${i}">
+          <input type="file" accept="image/*" onchange="addMgrImage(this, ${i})" style="display:none;">
+          <span class="mgr-img-plus" aria-hidden="true">+</span>
+          <span class="mgr-img-hint">إضافة صورة</span>
+        </label>`;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      previewDiv.innerHTML = `
-        <img src="${e.target.result}" style="width:100%; max-height:180px; object-fit:cover; border-radius:12px; border: 1px solid var(--glass-border);">
-        <small style="color:var(--success); display:block; margin-top:5px;">✅ ${file.name} (${(file.size / 1024).toFixed(0)} KB) — سيتم ضغطها تلقائياً</small>
-      `;
-    };
-    reader.readAsDataURL(file);
-  } else {
-    previewDiv.innerHTML = '';
   }
+  wrap.innerHTML = html;
+  if (hidden) hidden.value = JSON.stringify(imgs.filter(Boolean).slice(0, MGR_MAX_IMAGES));
+}
+
+window.removeMgrImage = (idx) => {
+  if (!Array.isArray(window._mgrImages)) return;
+  window._mgrImages.splice(idx, 1);
+  renderMgrImageSlots();
+};
+
+window.addMgrImage = async (input, idx) => {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('⚠️ الصورة أكبر من 8MB — سيتم ضغطها تلقائياً.', 'info');
+  }
+  const progressDiv = document.getElementById('mgr-upload-progress');
+  const progressBar = document.getElementById('mgr-progress-bar');
+  const progressText = document.getElementById('mgr-progress-text');
+  if (progressDiv) progressDiv.style.display = 'block';
+  if (progressBar) progressBar.style.width = '10%';
+  if (progressText) progressText.textContent = `⏳ ضغط الصورة ${idx + 1}…`;
+  try {
+    const compressedB64 = await compressAndConvert(file, 1600, 0.82);
+    if (progressBar) progressBar.style.width = '40%';
+    if (progressText) progressText.textContent = `📤 رفع الصورة ${idx + 1} إلى Google Drive…`;
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'uploadImage',
+        pass: sessionStorage.getItem('admin_token') || '',
+        filename: file.name,
+        base64: compressedB64
+      })
+    });
+    if (progressBar) progressBar.style.width = '80%';
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `خطأ في الخادم: ${res.status}`);
+    }
+    const upRes = await res.json();
+    if (!upRes.url) throw new Error(upRes.error || 'لم يتم الحصول على رابط الصورة');
+    if (!Array.isArray(window._mgrImages)) window._mgrImages = [];
+    // Append new URL (keep order; drop oldest if overflow somehow).
+    window._mgrImages = [...window._mgrImages.filter(Boolean), upRes.url].slice(0, MGR_MAX_IMAGES);
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressText) progressText.textContent = `✅ تم رفع الصورة ${idx + 1} بنجاح`;
+    showToast(`✅ تم رفع الصورة ${idx + 1}`, 'success');
+    renderMgrImageSlots();
+    setTimeout(() => { if (progressDiv) progressDiv.style.display = 'none'; }, 1500);
+  } catch (err) {
+    console.error('Image upload failed:', err);
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressText) progressText.textContent = '❌ فشل الرفع';
+    let msg = err.message || 'حاول مجدداً';
+    if (msg.includes('ADMIN_KEY')) msg = 'خطأ في مفتاح الإدارة. سجّل الدخول مجدداً.';
+    showToast(`❌ فشل رفع الصورة: ${msg}`, 'error');
+  } finally {
+    input.value = '';
+  }
+};
+
+// Backwards-compatible shim for any older markup that still calls previewMgrImage.
+window.previewMgrImage = (input) => {
+  if (input.files && input.files[0]) window.addMgrImage(input, (window._mgrImages || []).length);
 };
 /* ═══════════════════════════════════════════════════════
    18. CANVAS GRID ANIMATION
@@ -1700,32 +1799,38 @@ window.openOfferDetailModal = (packageName) => {
   const descEl = document.getElementById('offer-detail-desc');
   descEl.style.whiteSpace = 'pre-line';
   descEl.textContent = item.description || item.text || 'لا توجد تفاصيل إضافية.';
-  // Image button for Lightbox
+  // Image gallery — normalizeItem already parsed item.images into an array.
   const sliderContainer = document.getElementById('offer-detail-slider-container');
-  let imgs = [];
-  if (item.images) {
-    try {
-      const parsed = JSON.parse(item.images);
-      if (Array.isArray(parsed)) imgs = parsed;
-    } catch (e) {
-      if (typeof item.images === 'string') imgs = item.images.split(',').map(s => s.trim()).filter(Boolean);
-    }
-  } else if (item.image) {
-    imgs = typeof item.image === 'string' ? item.image.split(',').map(s => s.trim()).filter(Boolean) : [item.image];
-  }
-  imgs = imgs.filter(u => typeof u === 'string' && u.trim());
+  const imgs = (Array.isArray(item.images) ? item.images : []).filter(u => typeof u === 'string' && u.trim());
   _currentOfferImages = imgs;
 
   if (imgs.length > 0) {
+    const main = imgs[0];
+    const thumbs = imgs.slice(0, 6);
     sliderContainer.innerHTML = `
-      <div style="background: rgba(255,255,255,0.03); padding: 30px; text-align: center; border-bottom: 1px solid var(--glass-border); cursor: pointer;" onclick="openCurrentOfferLightbox()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCurrentOfferLightbox();}">
-        <div style="font-size: 3rem; margin-bottom: 10px;">📸</div>
-        <h3 style="color: var(--primary-light);">تصفح صور الفندق</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem;">انقر هنا لمشاهدة الصور (${imgs.length})</p>
+      <div class="offer-gallery">
+        <button type="button" class="offer-gallery-main" onclick="openCurrentOfferLightbox(0)" aria-label="عرض الصورة 1 بحجم كامل">
+          <img src="${escapeHtml(main)}" alt="${escapeHtml(item.name || '')} — صورة رئيسية" loading="eager">
+          <span class="offer-gallery-badge">📸 ${imgs.length} / ${imgs.length === 1 ? '1' : imgs.length}</span>
+        </button>
+        ${thumbs.length > 1 ? `
+          <div class="offer-gallery-thumbs">
+            ${thumbs.map((u, i) => `
+              <button type="button" class="offer-gallery-thumb ${i === 0 ? 'active' : ''}" onclick="openCurrentOfferLightbox(${i})" aria-label="عرض الصورة ${i + 1} بحجم كامل">
+                <img src="${escapeHtml(u)}" alt="صورة ${i + 1}" loading="lazy">
+              </button>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
   } else {
-    sliderContainer.innerHTML = '';
+    sliderContainer.innerHTML = `
+      <div class="offer-gallery-empty">
+        <div style="font-size: 2.4rem;">🕋</div>
+        <div>لم يتم رفع صور لهذا العرض بعد.</div>
+      </div>
+    `;
   }
   // Hotel map button (if configured)
   const mapBtn = document.getElementById('offer-detail-map-btn');
@@ -1751,9 +1856,9 @@ window.openOfferDetailModal = (packageName) => {
   window.openModal('modal-offer-detail');
 };
 
-window.openCurrentOfferLightbox = () => {
+window.openCurrentOfferLightbox = (startIdx = 0) => {
   if (!_currentOfferImages || !_currentOfferImages.length) return;
-  window.openLightbox(_currentOfferImages);
+  window.openLightbox(_currentOfferImages, startIdx);
 };
 let lightboxImages = [];
 let currentLightboxIndex = 0;
@@ -1777,22 +1882,22 @@ function normalizeImageUrl(u) {
   return url;
 }
 
-window.openLightbox = (images) => {
+window.openLightbox = (images, startIdx = 0) => {
   const list = Array.isArray(images) ? images : String(images || '').split(',');
   lightboxImages = list.map(s => normalizeImageUrl(String(s).trim())).filter(Boolean);
   if (!lightboxImages.length) return;
-  currentLightboxIndex = 0;
+  currentLightboxIndex = Math.max(0, Math.min(startIdx | 0, lightboxImages.length - 1));
 
   const track = document.getElementById('lightbox-track');
   track.innerHTML = lightboxImages.map((img, i) => `
-            <div class="lightbox-slide ${i === 0 ? 'active' : ''}" id="lb-slide-${i}">
-              <img src="${escapeHtml(img)}" alt="صورة الفندق" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer"
+            <div class="lightbox-slide ${i === currentLightboxIndex ? 'active' : ''}" id="lb-slide-${i}">
+              <img src="${escapeHtml(img)}" alt="صورة الفندق" loading="${i === currentLightboxIndex ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer"
                    onerror="this.onerror=null;this.insertAdjacentHTML('afterend','<div class=&quot;lb-fail&quot; style=&quot;color:#cbd2e6;padding:24px;text-align:center;&quot;>تعذر تحميل الصورة</div>');this.style.display='none';">
             </div>
           `).join('');
 
   window.openModal('lightbox-overlay');
-  document.getElementById('lightbox-counter').textContent = `1 / ${lightboxImages.length}`;
+  document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
   document.addEventListener('keydown', handleLightboxKeydown);
 };
 window.closeLightbox = () => {
