@@ -1096,7 +1096,7 @@ window.showManager = (type, rowIndex = null) => {
           <div class="full-w field"><label class="label">اسم الباقة</label><input type="text" name="name" value="${item ? item.name : ''}" placeholder="مثال: عمرة رمضان 2025" required></div>
           <div class="field"><label class="label">السعر الأساسي (دج)</label><input type="number" name="price" value="${item ? item.price : ''}" placeholder="85000" required></div>
           <div class="field"><label class="label">الفندق</label><input type="text" name="hotel" value="${item ? item.hotel : ''}" placeholder="فندق الحرم" required></div>
-          <div class="field"><label class="label">بداية العرض <small style="color:var(--text-muted);">(متى يظهر للزبون)</small></label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}"></div>
+          <div class="field"><label class="label">بداية العرض <small style="color:var(--text-muted);">(متى يظهر للزبون)</small></label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}" data-original="${item ? formatDateInput(item.start) : ''}"></div>
           <div class="field"><label class="label">نهاية العرض <small style="color:var(--text-muted);">(آخر يوم للحجز)</small></label><input type="date" name="end" value="${item ? formatDateInput(item.end) : ''}"></div>
 
           <div class="field"><label class="label">تاريخ الذهاب <small style="color:var(--text-muted);">(للرحلة)</small></label><input type="date" name="travelStart" value="${item ? formatDateInput(item.travelStart) : ''}"></div>
@@ -1217,12 +1217,17 @@ window.showManager = (type, rowIndex = null) => {
     // ─── Timezone-safety shim for the public-packages filter ────────────
     // Backend (code.gs::getPackages) hides offers whose start > "today",
     // where "today" is `new Date(); now.setHours(0,0,0,0)` — i.e. local
-    // (script-TZ) midnight. The start cell, however, is stored as UTC
-    // midnight. In any timezone east of UTC (e.g. Algeria GMT+1), a start
-    // of "today" lands AFTER local midnight, so the offer stays hidden
-    // until the next day. We compensate here by shifting the saved start
-    // back by exactly one calendar day. The admin sees no difference; the
-    // offer simply appears on the day they chose.
+    // (script-TZ) midnight. The start cell is stored as UTC midnight, so
+    // in any timezone east of UTC (e.g. Algeria GMT+1) a start of "today"
+    // lands AFTER local midnight and the offer stays hidden until the
+    // next day. We compensate by shifting the saved start back exactly
+    // one calendar day — but ONLY when the admin actually changed it.
+    // The original loaded value is captured in data-original on the
+    // input; if the submitted value matches it (or this is a brand-new
+    // offer where the field was just populated by the auto-default
+    // above), we still need to shift; if it matches a previously-saved
+    // (already-shifted) value, we skip to avoid cumulative drift on
+    // every edit→save cycle.
     const shiftBackOneDay = (isoStr) => {
       if (!isoStr) return '';
       const d = new Date(isoStr + 'T12:00:00Z'); // noon UTC -> safe rounding
@@ -1230,7 +1235,16 @@ window.showManager = (type, rowIndex = null) => {
       d.setUTCDate(d.getUTCDate() - 1);
       return d.toISOString().slice(0, 10);
     };
-    payload.start = shiftBackOneDay(payload.start);
+    const startInputEl = form.querySelector('input[name="start"]');
+    const originalStart = startInputEl ? (startInputEl.dataset.original || '') : '';
+    const isExistingOffer = payload.rowIndex !== undefined && payload.rowIndex !== '' && payload.rowIndex !== null;
+    const startWasChanged = payload.start !== originalStart;
+    // Shift only when: (a) brand-new offer, OR (b) admin edited the start.
+    // Re-saving an existing offer without touching `start` keeps the value
+    // already stored in the sheet (which was shifted at original creation).
+    if (!isExistingOffer || startWasChanged) {
+      payload.start = shiftBackOneDay(payload.start);
+    }
 
     // Step 2: Prepare row values for Google Sheets
     btnLoading.textContent = '💾 جاري حفظ البيانات...';
