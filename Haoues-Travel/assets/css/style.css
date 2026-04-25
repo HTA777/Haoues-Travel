@@ -2493,6 +2493,92 @@ main { display: block; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   21b. MOBILE PERFORMANCE OVERRIDES (≤768px)
+   ───────────────────────────────────────────────────────────────
+   Mobile GPUs choke on stacked backdrop-filter blurs, mix-blend-mode,
+   and many simultaneous transform/keyframe loops. The desktop look is
+   left untouched; on phones we disable the most expensive effects so
+   the site keeps a high frame rate and the offer-detail modal scrolls
+   smoothly without dragging the page behind it.
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Kill ambient animation layers that don't add value on small screens
+     and just burn battery / drop frames. */
+  #grid-canvas,
+  .aurora,
+  .mouse-glow,
+  .islamic-floater {
+    display: none !important;
+  }
+  .islamic-pattern {
+    /* keep a faint static texture, no animation, no blend-mode */
+    animation: none !important;
+    mix-blend-mode: normal;
+    opacity: 0.04;
+  }
+
+  /* Pause the gold shimmer — static gradient is just as luxurious and
+     free. */
+  .hero-title-deco {
+    animation: none !important;
+    background-position: 0 0 !important;
+  }
+
+  /* Strip backdrop-filter blurs on mobile. We keep the dark glass color
+     so contrast is preserved, but drop the GPU-killing blur. */
+  .hero-subtitle,
+  .modal,
+  .modal-overlay,
+  .lightbox-overlay,
+  .nav-bar,
+  .glass,
+  .glass-strong,
+  .glass-heavy,
+  .stat-item,
+  .card,
+  .about-panel,
+  .contact-card,
+  .filter-container,
+  .pkg-card,
+  .lightbox-thumb {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Solidify modal backgrounds so they aren't see-through after losing
+     the blur. */
+  .modal-overlay { background: rgba(2, 5, 9, 0.94); }
+  .modal { background: #0c1424; }
+
+  /* Smooth, contained scrolling inside the offer-detail / booking modal.
+     overscroll-behavior:contain prevents the "background scrolls when I
+     reach the bottom of the modal" bug; touch-action keeps the gesture
+     vertical only. */
+  .modal {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  .modal-overlay {
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  /* When body has the modal-open lock applied by JS, freeze the page
+     position so iOS Safari can't scroll the content underneath. */
+  body.modal-open {
+    position: fixed;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Reduce expensive shadows on cards while scrolling. */
+  .pkg-card,
+  .stat-item {
+    will-change: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    22. ACCESSIBILITY
    ═══════════════════════════════════════════════════════════════ */
 :focus-visible {

@@ -327,8 +327,39 @@ window.toggleMobileNav = () => {
   // Toggle aria-hidden so the overlay's contents are exposed/hidden from
   // assistive tech in step with the visual state.
   overlay.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
-  document.body.style.overflow = willOpen ? 'hidden' : '';
+  if (willOpen) lockBodyScroll(); else unlockBodyScroll();
 };
+
+/* ─── Body-scroll lock (iOS-safe) ───────────────────────────────────
+   Keeps the page from scrolling behind an open modal / mobile-nav.
+   On iOS Safari, `overflow: hidden` on body alone is not enough — once
+   the modal contents reach their scroll boundary the touch gesture
+   chains through to the document. The standard fix is to freeze body
+   with position:fixed at the current scroll offset and restore it on
+   close. The `body.modal-open` class also gates CSS rules in the mobile
+   block above. We refcount opens so nested modals (e.g. lightbox over
+   offer-detail) don't unlock prematurely. */
+let _bodyLockCount = 0;
+let _bodyLockScrollY = 0;
+function lockBodyScroll() {
+  if (_bodyLockCount === 0) {
+    _bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.top = `-${_bodyLockScrollY}px`;
+    document.body.classList.add('modal-open');
+    // Fallback for desktop where the @media block doesn't apply.
+    document.body.style.overflow = 'hidden';
+  }
+  _bodyLockCount++;
+}
+function unlockBodyScroll() {
+  if (_bodyLockCount > 0) _bodyLockCount--;
+  if (_bodyLockCount === 0) {
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, _bodyLockScrollY);
+  }
+}
 /* ─── Main UI Init ─── */
 function initUI() {
   // Mouse glow
@@ -634,7 +665,7 @@ window.openModal = (id) => {
   // The HTML defaults to aria-hidden="true"; without this flip, screen
   // readers cannot see anything inside the open dialog.
   el.setAttribute('aria-hidden', 'false');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll();
   // Focus first focusable control inside modal
   setTimeout(() => {
     const first = el.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])');
@@ -644,11 +675,12 @@ window.openModal = (id) => {
 window.closeModal = (id) => {
   const el = document.getElementById(id);
   if (!el) return;
+  // Avoid double-unlocking if the caller fires closeModal twice on the
+  // same already-closed overlay.
+  const wasActive = el.classList.contains('active');
   el.classList.remove('active');
   el.setAttribute('aria-hidden', 'true');
-  // Restore page scroll if no other modals are open
-  const anyOpen = document.querySelector('.modal-overlay.active');
-  if (!anyOpen) document.body.style.overflow = '';
+  if (wasActive) unlockBodyScroll();
 };
 let _verifyingStep1 = false;
 window.verifyBookingStep1 = async () => {
@@ -2093,11 +2125,11 @@ window.openLightbox = (images, startIdx = 0) => {
 window.closeLightbox = () => {
   const lb = document.getElementById('lightbox-overlay');
   if (lb) {
+    const wasActive = lb.classList.contains('active');
     lb.classList.remove('active');
     lb.setAttribute('aria-hidden', 'true');
+    if (wasActive) unlockBodyScroll();
   }
-  const anyOpen = document.querySelector('.modal-overlay.active');
-  if (!anyOpen) document.body.style.overflow = '';
   document.removeEventListener('keydown', handleLightboxKeydown);
 };
 function setLightboxImage(newIndex, direction) {
