@@ -648,8 +648,14 @@ window.openBookingModal = (packageName) => {
   const dot2 = document.getElementById('step-dot-2');
   if (step1) step1.style.display = 'block';
   if (step2) step2.style.display = 'none';
-  if (dot1) dot1.className = 'step-dot active';
-  if (dot2) dot2.className = 'step-dot';
+  if (dot1) {
+    dot1.className = 'step-dot active';
+    dot1.setAttribute('aria-current', 'step');
+  }
+  if (dot2) {
+    dot2.className = 'step-dot';
+    dot2.removeAttribute('aria-current');
+  }
   // Re-enable next button in case it was disabled
   const nextBtn = document.getElementById('btn-next-step');
   if (nextBtn) nextBtn.style.display = 'block';
@@ -747,8 +753,16 @@ window.verifyBookingStep1 = async () => {
   // Advance to step 2
   document.getElementById('booking-step-1').style.display = 'none';
   document.getElementById('booking-step-2').style.display = 'block';
-  document.getElementById('step-dot-1').className = 'step-dot done';
-  document.getElementById('step-dot-2').className = 'step-dot active';
+  const sd1 = document.getElementById('step-dot-1');
+  const sd2 = document.getElementById('step-dot-2');
+  if (sd1) {
+    sd1.className = 'step-dot done';
+    sd1.removeAttribute('aria-current');
+  }
+  if (sd2) {
+    sd2.className = 'step-dot active';
+    sd2.setAttribute('aria-current', 'step');
+  }
   populateRoomOptions();
   updateBookingTotalPrice();
 };
