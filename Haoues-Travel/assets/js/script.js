@@ -868,6 +868,32 @@ async function handleBookingSubmit(e) {
   const btn = document.getElementById('btn-submit-book');
   const formData = new FormData(e.target);
   const data = Object.fromEntries(formData.entries());
+
+  // Step-2 validation. The form has `novalidate` so the browser does not
+  // enforce min/required on these fields anymore (it would otherwise break
+  // multi-step flow when step 2 is hidden during step 1). We re-enforce
+  // them in JS so the server never receives empty/NaN pax or roomType.
+  const paxNum = parseInt(data.pax, 10);
+  if (!Number.isFinite(paxNum) || paxNum < 1) {
+    const paxInput = document.getElementById('b-pax');
+    if (paxInput) paxInput.focus();
+    showToast('⚠️ الرجاء إدخال عدد أشخاص صحيح (1 أو أكثر).', 'error');
+    return;
+  }
+  const remaining = currentBookingPackage
+    ? (currentBookingPackage.seats || 0) - (currentBookingPackage.booked || 0)
+    : 0;
+  if (paxNum > remaining) {
+    const paxInput = document.getElementById('b-pax');
+    if (paxInput) paxInput.focus();
+    showToast(`⚠️ المقاعد المتبقية: ${remaining}. أدخل عدداً ضمن هذا الحد.`, 'error');
+    return;
+  }
+  if (!data.roomType || !String(data.roomType).trim()) {
+    showToast('⚠️ الرجاء اختيار نوع الغرفة.', 'error');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = "جاري الحجز...";
   try {
