@@ -38,7 +38,7 @@
     href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Cairo:wght@400;500;600;700;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@500;700&display=swap"
     rel="stylesheet">
 
-  <link rel="stylesheet" href="assets/css/style.css?v=haoues-13.3">
+  <link rel="stylesheet" href="assets/css/style.css?v=haoues-13.4">
   <link rel="icon" type="image/png" href="logo/Haous-Logo2.png">
   <link rel="apple-touch-icon" href="logo/Haous-Logo2.png">
 
@@ -171,6 +171,7 @@
         <span class="hero-eyebrow no-select" oncontextmenu="return false">✦ رحلات الحج والعمرة — تجربة فاخرة</span>
         <h1 class="hero-title no-select" oncontextmenu="return false">
           رحلة العمر
+          <img src="assets/img/ui/crown.png" alt="" aria-hidden="true" class="hero-crown" width="48" height="48">
           <span class="hero-title-deco">بلمسة ملكية</span>
         </h1>
         <p class="hero-subtitle">
@@ -252,7 +253,10 @@
 
     <!-- ═══════ CONTACT ═══════ -->
     <section id="contact" class="section contact-section" aria-labelledby="contact-title">
-      <h2 id="contact-title" class="reveal section-title-deco">تواصل معنا</h2>
+      <h2 id="contact-title" class="reveal section-title-deco">
+        <img src="assets/img/ui/inbox.png" alt="" aria-hidden="true" class="section-title-icon" width="44" height="44">
+        تواصل معنا
+      </h2>
       <div class="contact-grid">
         <div class="stat-item reveal contact-card">
           <span class="stat-label contact-card-label"><svg class="ic ic-teal" viewBox="0 0 24 24"><use href="#ic-phone"/></svg> الهاتف</span>
@@ -274,7 +278,10 @@
           <span class="stat-label contact-card-label"><svg class="ic ic-teal" viewBox="0 0 24 24"><use href="#ic-share"/></svg> تابعونا</span>
           <div class="contact-phone-list">
             <a href="https://web.facebook.com/haoues.travel" target="_blank" rel="noopener noreferrer"
-              class="contact-link">📘 فيسبوك — Haoues Travel</a>
+              class="contact-link contact-link-fb">
+              <img src="assets/img/ui/facebook.webp" alt="" aria-hidden="true" class="contact-fb-icon" width="22" height="22">
+              فيسبوك — Haoues Travel
+            </a>
           </div>
         </div>
       </div>
@@ -310,11 +317,12 @@
       </div>
       <div id="admin-pass-row"
         style="display:none; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:var(--space-4);">
+        <img src="assets/img/ui/lock.png" alt="" aria-hidden="true" class="admin-lock-icon" width="32" height="32">
         <input type="password" id="admin-pass-input" placeholder="كلمة المرور"
           style="text-align:center; max-width:220px;"
           onkeydown="if(event.key==='Enter') verifyAdminSwitch()"
           autocomplete="off" aria-label="كلمة مرور لوحة الإدارة">
-        <button onclick="verifyAdminSwitch()" class="btn btn-p" style="padding:10px 22px; font-size:0.9rem;">دخول 🔓</button>
+        <button onclick="verifyAdminSwitch()" class="btn btn-p" style="padding:10px 22px; font-size:0.9rem;">دخول</button>
         <span id="admin-pass-err" style="color:var(--danger); font-size:0.82rem; display:none;">❌ كلمة المرور خاطئة</span>
       </div>
     </div>
@@ -487,6 +495,11 @@
             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchTab('packages');}">العروض
           </div>
         </div>
+        <button class="btn btn-outline admin-refresh-btn" onclick="fetchAdminData(false)"
+          aria-label="تحديث البيانات" title="تحديث البيانات">
+          <img src="assets/img/ui/refresh.png" alt="" aria-hidden="true" width="20" height="20">
+          <span>تحديث</span>
+        </button>
         <button class="btn btn-s"
           onclick="document.getElementById('admin-panel').style.display='none'; document.body.style.overflow='';"
           style="padding:8px 20px; font-size:var(--text-sm);" aria-label="خروج من لوحة الإدارة">خروج ✕</button>
@@ -638,7 +651,7 @@
   </div>
 
   <!-- Global Scripts — xlsx lazy-loaded from script.js on demand -->
-  <script src="assets/js/script.js?v=haoues-13.3" defer></script>
+  <script src="assets/js/script.js?v=haoues-13.4" defer></script>
 </body>
 
 </html>

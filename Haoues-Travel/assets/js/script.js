@@ -898,7 +898,7 @@ async function handleBookingSubmit(e) {
   btn.textContent = "جاري الحجز...";
   try {
     await gasFetch('POST', { action: 'book', data: data });
-    showToast("✅ تم الحجز بنجاح! سنتواصل معكم قريباً.", 'success');
+    showToast("تم إرسال طلب الحجز بنجاح! سنتواصل معكم قريباً.", 'success', 'assets/img/ui/check.png');
     closeModal('modal-booking');
     e.target.reset();
     fetchInitialData();
@@ -1402,7 +1402,7 @@ window.showManager = (type, rowIndex = null) => {
       if (saveResult.error) {
         showToast(`❌ ${saveResult.error}`, 'error');
       } else {
-        showToast('🕌 تم حفظ الباقة بنجاح!', 'success');
+        showToast('تم رفع العرض بنجاح', 'success', 'assets/img/ui/check.png');
         closeModal('modal-manager');
         setTimeout(async () => {
           await fetchAdminData();
@@ -1729,12 +1729,24 @@ window.switchTab = (tab) => {
 /* ═══════════════════════════════════════════════════════
    7. TOAST NOTIFICATION SYSTEM
    ═══════════════════════════════════════════════════════ */
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', iconUrl = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.textContent = message;
+  if (iconUrl) {
+    const icon = document.createElement('img');
+    icon.src = iconUrl;
+    icon.alt = '';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'width:24px;height:24px;flex-shrink:0;object-fit:contain;';
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(icon);
+    toast.appendChild(text);
+  } else {
+    toast.textContent = message;
+  }
   const colors = {
     success: { border: 'var(--success)', bg: 'rgba(0, 230, 195, 0.1)', text: 'var(--success)' },
     error: { border: 'var(--danger)', bg: 'rgba(255, 71, 87, 0.1)', text: 'var(--danger)' },
@@ -1755,6 +1767,10 @@ function showToast(message, type = 'info') {
     box-shadow: 0 8px 30px rgba(0,0,0,0.3);
     max-width: 480px;
     text-align: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
   `;
   container.appendChild(toast);
   setTimeout(() => {
