@@ -360,6 +360,20 @@ function unlockBodyScroll() {
     window.scrollTo(0, _bodyLockScrollY);
   }
 }
+/* Defensive cleanup: if no modal/lightbox is actually active in the DOM,
+   force the body lock back to 0 and clear all inline body styles. This is
+   the safety net that prevents the iOS "can't scroll/tap after closing
+   lightbox" bug — a stuck _bodyLockCount left position:fixed on the body
+   and an invisible overlay covering the viewport center. */
+function syncBodyLockToOpenModals() {
+  const anyOpen = !!document.querySelector(
+    '.modal-overlay.active, .lightbox-overlay.active, #mobile-nav-overlay.active'
+  );
+  if (!anyOpen && _bodyLockCount !== 0) {
+    _bodyLockCount = 1; // so the next call drops to 0 and runs cleanup
+    unlockBodyScroll();
+  }
+}
 /* ─── Main UI Init ─── */
 function initUI() {
   // Mouse glow
@@ -687,6 +701,7 @@ window.closeModal = (id) => {
   el.classList.remove('active');
   el.setAttribute('aria-hidden', 'true');
   if (wasActive) unlockBodyScroll();
+  syncBodyLockToOpenModals();
 };
 let _verifyingStep1 = false;
 window.verifyBookingStep1 = async () => {
@@ -2143,8 +2158,16 @@ window.closeLightbox = () => {
     lb.classList.remove('active');
     lb.setAttribute('aria-hidden', 'true');
     if (wasActive) unlockBodyScroll();
+    // Reset any swipe-in-progress transform left on the active slide so a
+    // half-finished gesture doesn't keep the lightbox-frame visually stuck.
+    isDragging = false;
+    const slide = document.getElementById(`lb-slide-${currentLightboxIndex}`);
+    if (slide) { slide.style.transform = ''; slide.style.transition = ''; }
   }
   document.removeEventListener('keydown', handleLightboxKeydown);
+  // Safety net: if for any reason another path left the lock counter
+  // unbalanced (double-close, transition glitch, etc.), reconcile it now.
+  syncBodyLockToOpenModals();
 };
 function setLightboxImage(newIndex, direction) {
   if (lightboxImages.length <= 1 || newIndex === currentLightboxIndex) return;
