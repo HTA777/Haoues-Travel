@@ -70,13 +70,17 @@ async function gasFetch(method, payload = {}, retries = 2) {
   };
   let finalUrl = url;
   if (isPost) {
-    if (!payload.key && !payload.pass) payload.pass = token;
+    // Backend (code.gs) reads the admin credential from `key` only — send it
+    // on that field, not `pass`. Non-admin POSTs (book, checkDuplicate) don't
+    // need a token.
+    if (token && !payload.key) payload.key = token;
     options.body = JSON.stringify(payload);
   } else {
     const params = new URLSearchParams(payload);
-    const isAdminAction = ['bookings', 'adminInitial', 'setup'].includes(payload.action);
-    if (isAdminAction && !params.has('key') && !params.has('pass')) {
-      params.append('pass', token);
+    const adminOnlyActions = ['bookings', 'adminInitial', 'setup'];
+    const isAdminAction = adminOnlyActions.includes(payload.action);
+    if (isAdminAction && token && !params.has('key')) {
+      params.append('key', token);
     }
     finalUrl = `${url}?${params.toString()}`;
   }
@@ -150,7 +154,7 @@ function normalizeItem(item) {
     airline: ["شركة_الطيران", "الطيران"],
     flightType: ["نوع_الرحلة"],
     documents: ["الوثائق_المطلوبة", "الوثائق"],
-    distance: ["المسافة_عن_الحرم", "المسافة"],
+    distance: ["المسافة_عن_الحرم", "المسافة", "distanceHaram"],
     food: ["الإطعام"],
     hotelMap: ["رابط_الفندق"],
     description: ["الوصف", "text"],
@@ -198,6 +202,31 @@ function normalizeItem(item) {
   const checkBool = (val) => val === true || val === "TRUE" || String(val).toLowerCase() === "true";
   if (normalized.published !== undefined) normalized.published = checkBool(normalized.published);
   if (normalized.active !== undefined) normalized.active = checkBool(normalized.active);
+
+  // Images normalization — accept JSON array, CSV/pipe/newline separated, legacy
+  // single `image` field, or literal "undefined" strings the sheet may contain.
+  // After normalization: item.images is ALWAYS an array of URLs (possibly empty),
+  // and item.image is the first URL (for legacy single-image consumers).
+  const parseImages = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(u => typeof u === 'string' && u.trim() && u.trim().toLowerCase() !== 'undefined');
+    const s = String(raw).trim();
+    if (!s || s.toLowerCase() === 'undefined' || s === '[]' || s === '""') return [];
+    if (s.startsWith('[')) {
+      try {
+        const arr = JSON.parse(s);
+        if (Array.isArray(arr)) return arr.filter(u => typeof u === 'string' && u.trim());
+      } catch (e) { /* fall through */ }
+    }
+    return s.split(/[,;\n|]+/).map(u => u.trim()).filter(u => u && u.toLowerCase() !== 'undefined');
+  };
+  const imgList = parseImages(normalized.images).concat(
+    normalized.image && !parseImages(normalized.images).length ? parseImages(normalized.image) : []
+  );
+  // Deduplicate while preserving order
+  const seen = new Set();
+  normalized.images = imgList.filter(u => (seen.has(u) ? false : (seen.add(u), true))).slice(0, 6);
+  normalized.image = normalized.images[0] || '';
   return normalized;
 }
 /* ═══════════════════════════════════════════════════════
@@ -295,8 +324,56 @@ window.toggleMobileNav = () => {
   overlay.classList.toggle('active', willOpen);
   hamburger.classList.toggle('active', willOpen);
   hamburger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-  document.body.style.overflow = willOpen ? 'hidden' : '';
+  // Toggle aria-hidden so the overlay's contents are exposed/hidden from
+  // assistive tech in step with the visual state.
+  overlay.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+  if (willOpen) lockBodyScroll(); else unlockBodyScroll();
 };
+
+/* ─── Body-scroll lock (iOS-safe) ───────────────────────────────────
+   Keeps the page from scrolling behind an open modal / mobile-nav.
+   On iOS Safari, `overflow: hidden` on body alone is not enough — once
+   the modal contents reach their scroll boundary the touch gesture
+   chains through to the document. The standard fix is to freeze body
+   with position:fixed at the current scroll offset and restore it on
+   close. The `body.modal-open` class also gates CSS rules in the mobile
+   block above. We refcount opens so nested modals (e.g. lightbox over
+   offer-detail) don't unlock prematurely. */
+let _bodyLockCount = 0;
+let _bodyLockScrollY = 0;
+function lockBodyScroll() {
+  if (_bodyLockCount === 0) {
+    _bodyLockScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.top = `-${_bodyLockScrollY}px`;
+    document.body.classList.add('modal-open');
+    // Fallback for desktop where the @media block doesn't apply.
+    document.body.style.overflow = 'hidden';
+  }
+  _bodyLockCount++;
+}
+function unlockBodyScroll() {
+  if (_bodyLockCount > 0) _bodyLockCount--;
+  if (_bodyLockCount === 0) {
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, _bodyLockScrollY);
+  }
+}
+/* Defensive cleanup: if no modal/lightbox is actually active in the DOM,
+   force the body lock back to 0 and clear all inline body styles. This is
+   the safety net that prevents the iOS "can't scroll/tap after closing
+   lightbox" bug — a stuck _bodyLockCount left position:fixed on the body
+   and an invisible overlay covering the viewport center. */
+function syncBodyLockToOpenModals() {
+  const anyOpen = !!document.querySelector(
+    '.modal-overlay.active, .lightbox-overlay.active, #mobile-nav-overlay.active'
+  );
+  if (!anyOpen && _bodyLockCount !== 0) {
+    _bodyLockCount = 1; // so the next call drops to 0 and runs cleanup
+    unlockBodyScroll();
+  }
+}
 /* ─── Main UI Init ─── */
 function initUI() {
   // Mouse glow
@@ -483,31 +560,70 @@ function renderPackages() {
     const priceText = Number.isFinite(Number(item.price)) && Number(item.price) > 0
       ? Number(item.price).toLocaleString()
       : '—';
+    const dateLine = item.travelStart || item.travelEnd
+      ? [
+          item.travelStart ? `<span>🛫 ${escapeHtml(formatDate(item.travelStart))}</span>` : '',
+          item.travelEnd   ? `<span>🛬 ${escapeHtml(formatDate(item.travelEnd))}</span>` : ''
+        ].filter(Boolean).join('<span style="color:var(--border-mid);">•</span>')
+      : `<span>📅 ${escapeHtml(formatDate(item.start))}</span>`;
+    const staggerClass = `stagger-${Math.min(index + 1, 5)}`;
+    const heroImg = item.images && item.images[0] ? item.images[0] : '';
+    const heroImgHtml = heroImg
+      ? `<div class="card-hero">
+           <img src="${escapeHtml(heroImg)}" alt="${nameHtml}" loading="lazy" referrerpolicy="no-referrer">
+           <span class="badge card-hero-badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
+           ${item.images.length > 1 ? `<span class="card-hero-count">📸 ${item.images.length}</span>` : ''}
+         </div>`
+      : '';
     return `
-      <div class="card reveal" style="transition-delay: ${index * 0.1}s; cursor: pointer; display: flex; flex-direction: column;" onclick="window.openOfferDetailModal('${nameJs}')">
-       <span class="badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
-              <div class="card-body" style="padding: 40px 24px; flex: 1; display: flex; flex-direction: column; text-align: center;">
-                <div style="font-size:3.5rem; text-align:center; margin-bottom:20px; opacity: 0.9;">🕋</div>
-                <h3 style="text-align:center; font-size:3.2rem; margin-bottom:15px; color: var(--primary-light);">${nameHtml}</h3>
-                <div class="price" style="text-align:center; font-size:2rem; margin-bottom: 30px;">ابتداءً من <span style="font-size: 4rem; font-weight: bold;">${priceText} دج</span></div>
-                <div class="meta" style="grid-template-columns: 1fr; gap: 12px; margin-bottom: 30px; flex: 1; text-align: center;">
-                  ${item.travelStart || item.travelEnd ? `
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; display: flex; flex-direction: column; gap: 6px;">
-                    ${item.travelStart ? `<div><span style="color:var(--text-muted);">🛫 الذهاب:</span> <span style="font-weight:700;">${escapeHtml(formatDate(item.travelStart))}</span></div>` : ''}
-                    ${item.travelEnd ? `<div><span style="color:var(--text-muted);">🛬 العودة:</span> <span style="font-weight:700;">${escapeHtml(formatDate(item.travelEnd))}</span></div>` : ''}
-                  </div>
-                  ` : `<div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center;">📅 ${escapeHtml(formatDate(item.start))}</div>`}
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; font-size:1.15rem; font-weight:800; color:var(--text-main);">🏨 ${hotelHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; color: var(--text-dim); font-size:0.9rem;">✈️ ${airlineHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; color: var(--text-dim); font-size:0.9rem;">📍 المسافة: ${distanceHtml}</div>
-                  <div style="border:none; background:rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; font-size:1.15rem; font-weight:800; color:var(--text-main);">💺 متبقي: ${remaining} مقعد</div>
-                </div>
-                <button class="btn btn-p" style="width: 100%; margin-top: auto;" onclick="event.stopPropagation(); window.openOfferDetailModal('${nameJs}')">
-                  عرض التفاصيل 🔍
-                 </button>
-                         </div>
-                       </div>
-                     `;
+      <article class="card reveal ${staggerClass}" role="listitem" tabindex="0"
+        onclick="window.openOfferDetailModal('${nameJs}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.openOfferDetailModal('${nameJs}');}"
+        aria-label="${nameHtml} — عرض التفاصيل">
+        ${heroImgHtml}
+        <div class="card-body">
+          ${heroImg ? '' : `<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <div style="font-size:2.4rem; line-height:1;" aria-hidden="true">🕋</div>
+            <span class="badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
+          </div>`}
+          <h3 style="font-family:var(--font-display); font-size:var(--text-lg); color:var(--gold-200); margin-bottom:var(--space-3); line-height:var(--leading-snug);">${nameHtml}</h3>
+
+          <div style="display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-4); font-size:var(--text-sm); color:var(--text-secondary); align-items:center;">
+            ${dateLine}
+          </div>
+
+          <div class="meta" style="grid-template-columns:1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-5);">
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">🏨 الفندق</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${hotelHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">✈️ الطيران</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${airlineHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">📍 المسافة</div>
+              <div style="font-weight:var(--w-bold); color:var(--text-primary); font-size:var(--text-sm);">${distanceHtml}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:10px 12px;">
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); margin-bottom:2px; letter-spacing:var(--tracking-wide);">💺 المقاعد</div>
+              <div style="font-weight:var(--w-bold); color:${isFull ? 'var(--danger)' : 'var(--success)'}; font-size:var(--text-sm);">${isFull ? 'ممتلئ' : `${remaining} متبقي`}</div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-subtle); padding-top:var(--space-4); display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap;">
+            <div>
+              <div style="font-size:var(--text-xs); color:var(--text-secondary); letter-spacing:var(--tracking-wide);">ابتداءً من</div>
+              <div class="price" style="font-size:var(--text-lg);">${priceText} <span style="font-size:var(--text-sm); color:var(--text-secondary);">دج</span></div>
+            </div>
+            <button class="btn btn-p" style="padding:10px 22px; font-size:var(--text-sm);"
+              onclick="event.stopPropagation(); window.openOfferDetailModal('${nameJs}')"
+              ${isFull ? 'disabled' : ''}>
+              ${isFull ? 'نفدت' : 'التفاصيل 🔍'}
+            </button>
+          </div>
+        </div>
+      </article>`;
   }).join('');
   refreshRevealObserver();
 }
@@ -546,8 +662,14 @@ window.openBookingModal = (packageName) => {
   const dot2 = document.getElementById('step-dot-2');
   if (step1) step1.style.display = 'block';
   if (step2) step2.style.display = 'none';
-  if (dot1) dot1.className = 'step-dot active';
-  if (dot2) dot2.className = 'step-dot';
+  if (dot1) {
+    dot1.className = 'step-dot active';
+    dot1.setAttribute('aria-current', 'step');
+  }
+  if (dot2) {
+    dot2.className = 'step-dot';
+    dot2.removeAttribute('aria-current');
+  }
   // Re-enable next button in case it was disabled
   const nextBtn = document.getElementById('btn-next-step');
   if (nextBtn) nextBtn.style.display = 'block';
@@ -559,7 +681,11 @@ window.openModal = (id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add('active');
-  document.body.style.overflow = 'hidden';
+  // Expose the modal contents to assistive tech while it is visible.
+  // The HTML defaults to aria-hidden="true"; without this flip, screen
+  // readers cannot see anything inside the open dialog.
+  el.setAttribute('aria-hidden', 'false');
+  lockBodyScroll();
   // Focus first focusable control inside modal
   setTimeout(() => {
     const first = el.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])');
@@ -569,10 +695,13 @@ window.openModal = (id) => {
 window.closeModal = (id) => {
   const el = document.getElementById(id);
   if (!el) return;
+  // Avoid double-unlocking if the caller fires closeModal twice on the
+  // same already-closed overlay.
+  const wasActive = el.classList.contains('active');
   el.classList.remove('active');
-  // Restore page scroll if no other modals are open
-  const anyOpen = document.querySelector('.modal-overlay.active');
-  if (!anyOpen) document.body.style.overflow = '';
+  el.setAttribute('aria-hidden', 'true');
+  if (wasActive) unlockBodyScroll();
+  syncBodyLockToOpenModals();
 };
 let _verifyingStep1 = false;
 window.verifyBookingStep1 = async () => {
@@ -639,25 +768,67 @@ window.verifyBookingStep1 = async () => {
   // Advance to step 2
   document.getElementById('booking-step-1').style.display = 'none';
   document.getElementById('booking-step-2').style.display = 'block';
-  document.getElementById('step-dot-1').className = 'step-dot done';
-  document.getElementById('step-dot-2').className = 'step-dot active';
+  const sd1 = document.getElementById('step-dot-1');
+  const sd2 = document.getElementById('step-dot-2');
+  if (sd1) {
+    sd1.className = 'step-dot done';
+    sd1.removeAttribute('aria-current');
+  }
+  if (sd2) {
+    sd2.className = 'step-dot active';
+    sd2.setAttribute('aria-current', 'step');
+  }
   populateRoomOptions();
   updateBookingTotalPrice();
 };
+function parseRoomsField(raw) {
+  // Returns an array of { name, price } — price may be undefined.
+  if (!raw) return [];
+  // Already an array of objects?
+  if (Array.isArray(raw)) {
+    return raw
+      .map(r => (typeof r === 'string' ? { name: r.trim() } : { name: String(r.name || '').trim(), price: Number(r.price) || undefined }))
+      .filter(r => r.name);
+  }
+  const s = String(raw).trim();
+  if (!s) return [];
+  // JSON array form
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        return arr
+          .map(r => (typeof r === 'string' ? { name: r.trim() } : { name: String(r.name || '').trim(), price: Number(r.price) || undefined }))
+          .filter(r => r.name);
+      }
+    } catch (e) { /* fall through */ }
+  }
+  // Comma-separated or whitespace-separated plain text (e.g. "ثنائية، ثلاثية" or "غرفة ثنائية ثلاثية رباعية")
+  const stripped = s.replace(/^\s*غرف?\s+/, '').replace(/^\s*غرفة\s+/, '');
+  const parts = /[،,]/.test(stripped)
+    ? stripped.split(/[،,]/)
+    : stripped.split(/\s+/);
+  return parts.map(p => ({ name: p.trim() })).filter(r => r.name);
+}
+
 function populateRoomOptions() {
   const container = document.getElementById('room-chips');
   const hiddenInput = document.getElementById('b-room');
   if (!container || !hiddenInput || !currentBookingPackage) return;
-  const roomText = currentBookingPackage.rooms || "ثنائية، ثلاثية، رباعية";
-  const rooms = roomText.split(/[،,]/).map(r => r.trim()).filter(Boolean);
-  container.innerHTML = rooms
-    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" onclick="selectRoomFilter('${escapeJsString(r)}')">${escapeHtml(r)}</button>`)
+  const rooms = parseRoomsField(currentBookingPackage.rooms);
+  const list = rooms.length ? rooms : [{ name: 'ثنائية' }, { name: 'ثلاثية' }, { name: 'رباعية' }];
+  // Expose parsed rooms on the current package so pricing logic can use per-room prices.
+  currentBookingPackage._roomsParsed = list;
+  container.innerHTML = list
+    .map((r, i) => `<button type="button" class="chip-btn ${i === 0 ? 'active' : ''}" style="min-height:60px; font-size:var(--text-sm);" onclick="selectRoomFilter('${escapeJsString(r.name)}')">🛏️ ${escapeHtml(r.name)}</button>`)
     .join('');
-  hiddenInput.value = rooms[0] || '';
+  hiddenInput.value = list[0].name || '';
 }
 window.selectRoomFilter = function (val) {
   document.querySelectorAll('#room-chips .chip-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent === val);
+    // textContent includes the '🛏️ ' prefix, so compare on a trimmed suffix.
+    const label = btn.textContent.replace(/^\s*🛏️\s*/, '').trim();
+    btn.classList.toggle('active', label === val);
   });
   document.getElementById('b-room').value = val;
   updateBookingTotalPrice();
@@ -674,8 +845,13 @@ window.updateBookingTotalPrice = () => {
   const roomType = document.getElementById('b-room').value;
   const priceDisplay = document.getElementById('b-total-price');
   let basePrice = currentBookingPackage.price;
-  // Adaptive pricing logic
-  if (roomType.includes('ثنائية')) basePrice = currentBookingPackage.priceDouble || basePrice;
+  // Adaptive pricing logic — prefer per-room prices from JSON rooms array, then
+  // fall back to discrete priceDouble/Triple/... fields, then the package base price.
+  const parsed = currentBookingPackage._roomsParsed || parseRoomsField(currentBookingPackage.rooms);
+  const roomMatch = parsed.find(r => r.name === roomType || (roomType && r.name && roomType.includes(r.name)));
+  if (roomMatch && roomMatch.price) {
+    basePrice = roomMatch.price;
+  } else if (roomType.includes('ثنائية')) basePrice = currentBookingPackage.priceDouble || basePrice;
   else if (roomType.includes('ثلاثية')) basePrice = currentBookingPackage.priceTriple || basePrice;
   else if (roomType.includes('رباعية')) basePrice = currentBookingPackage.priceQuad || basePrice;
   else if (roomType.includes('خماسية')) basePrice = currentBookingPackage.priceQuint || basePrice;
@@ -692,11 +868,37 @@ async function handleBookingSubmit(e) {
   const btn = document.getElementById('btn-submit-book');
   const formData = new FormData(e.target);
   const data = Object.fromEntries(formData.entries());
+
+  // Step-2 validation. The form has `novalidate` so the browser does not
+  // enforce min/required on these fields anymore (it would otherwise break
+  // multi-step flow when step 2 is hidden during step 1). We re-enforce
+  // them in JS so the server never receives empty/NaN pax or roomType.
+  const paxNum = parseInt(data.pax, 10);
+  if (!Number.isFinite(paxNum) || paxNum < 1) {
+    const paxInput = document.getElementById('b-pax');
+    if (paxInput) paxInput.focus();
+    showToast('⚠️ الرجاء إدخال عدد أشخاص صحيح (1 أو أكثر).', 'error');
+    return;
+  }
+  const remaining = currentBookingPackage
+    ? (currentBookingPackage.seats || 0) - (currentBookingPackage.booked || 0)
+    : 0;
+  if (paxNum > remaining) {
+    const paxInput = document.getElementById('b-pax');
+    if (paxInput) paxInput.focus();
+    showToast(`⚠️ المقاعد المتبقية: ${remaining}. أدخل عدداً ضمن هذا الحد.`, 'error');
+    return;
+  }
+  if (!data.roomType || !String(data.roomType).trim()) {
+    showToast('⚠️ الرجاء اختيار نوع الغرفة.', 'error');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = "جاري الحجز...";
   try {
     await gasFetch('POST', { action: 'book', data: data });
-    showToast("✅ تم الحجز بنجاح! سنتواصل معكم قريباً.", 'success');
+    showToast("تم إرسال طلب الحجز بنجاح! سنتواصل معكم قريباً.", 'success', 'assets/img/ui/check.png');
     closeModal('modal-booking');
     e.target.reset();
     fetchInitialData();
@@ -846,18 +1048,18 @@ function renderAdminBookings() {
     const rowIdx = Number(b.rowIndex);
     return `
       <tr data-status="${escapeHtml(statusForFilter)}" data-package="${escapeHtml(pkgName)}">
-        <td>${escapeHtml(b.firstName || '')} ${escapeHtml(b.lastName || '')}</td>
-        <td dir="ltr">${escapeHtml(b.phone || '')}</td>
-        <td>${escapeHtml(pkgName)}</td>
-        <td>${escapeHtml(String(b.pax || ''))}</td>
-        <td>${escapeHtml(b.roomType || '')}</td>
-        <td>
+        <td data-label="الاسم">${escapeHtml(b.firstName || '')} ${escapeHtml(b.lastName || '')}</td>
+        <td data-label="الهاتف" dir="ltr">${escapeHtml(b.phone || '')}</td>
+        <td data-label="الباقة">${escapeHtml(pkgName)}</td>
+        <td data-label="أفراد">${escapeHtml(String(b.pax || ''))}</td>
+        <td data-label="الغرفة">${escapeHtml(b.roomType || '')}</td>
+        <td data-label="الحالة">
           <span class="st ${si.cls}" role="button" tabindex="0" onclick="cycleBookingStatus(${rowIdx}, '${escapeJsString(b.status)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cycleBookingStatus(${rowIdx}, '${escapeJsString(b.status)}');}" title="انقر لتغيير الحالة">
             ${si.label}
           </span>
         </td>
-        <td style="font-size: 0.72rem; color: var(--text-dim);">${escapeHtml(formatDate(b.timestamp))}</td>
-        <td><button class="btn-delete" onclick="performFinalDeletionRobustV4('BOOKINGS', ${rowIdx})" title="حذف الحجز" aria-label="حذف الحجز">${ICON_TRASH}</button></td>
+        <td data-label="التاريخ" style="font-size:0.72rem; color:var(--text-muted-strong);">${escapeHtml(formatDate(b.timestamp))}</td>
+        <td data-label="إجراءات"><button class="btn-delete" onclick="performFinalDeletionRobustV4('BOOKINGS', ${rowIdx})" title="حذف الحجز" aria-label="حذف الحجز">${ICON_TRASH}</button></td>
       </tr>
     `;
   }).join('');
@@ -950,23 +1152,47 @@ function renderAdminPackages() {
     return;
   }
   container.innerHTML = filtered.map(p => {
-    const seats = parseInt(p.seats) || 0;
-    const booked = parseInt(p.booked) || 0;
+    const norm = normalizeItem(p);
+    const seats = parseInt(norm.seats) || 0;
+    const booked = parseInt(norm.booked) || 0;
     const remaining = seats - booked;
     const isFull = remaining <= 0;
-    const isPublished = p.published === true;
+    const isPublished = norm.published === true;
     const rowIdx = Number(p.rowIndex);
-    const imgUrl = escapeHtml(String(p.image || ''));
-    const nameHtml = escapeHtml(p.name || 'بدون اسم');
+    // First image from the parsed images array, fall back to legacy `image`.
+    const heroImg = (Array.isArray(norm.images) && norm.images[0]) ? norm.images[0] : (norm.image || '');
+    const imgUrl = escapeHtml(String(heroImg));
+    const nameHtml = escapeHtml(norm.name || 'بدون اسم');
+    const hotelHtml = escapeHtml(norm.hotel || '—');
+    const priceText = Number.isFinite(Number(norm.price)) && Number(norm.price) > 0
+      ? `${Number(norm.price).toLocaleString()} دج`
+      : '—';
+    const startText = norm.start ? formatDate(norm.start) : '—';
+    const endText   = norm.end   ? formatDate(norm.end)   : '—';
+    const fallbackImg = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect fill=%22%23111%22 width=%2260%22 height=%2260%22/><text x=%2230%22 y=%2238%22 text-anchor=%22middle%22 font-size=%2224%22>🕋</text></svg>';
     return `
-        <div class="card" style="padding:18px; display:flex; gap:16px; align-items:center; flex-direction:row;">
-           <img src="${imgUrl}" alt="" loading="lazy" decoding="async" style="width:56px; height:56px; border-radius:12px; object-fit:cover; border:1px solid var(--glass-border);" onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 60%22><rect fill=%22%23111%22 width=%2260%22 height=%2260%22/><text x=%2230%22 y=%2238%22 text-anchor=%22middle%22 font-size=%2224%22>🕋</text></svg>'">
-           <div style="flex:1; min-width:0;">
-             <strong style="display:block; margin-bottom:4px;">${nameHtml}</strong>
-             <small style="color:var(--text-muted);">${isPublished ? '✅ منشور' : '❌ مخفي'} | <span style="color:${isFull ? 'var(--danger)' : 'var(--success)'}">${isFull ? 'ممتلئ' : '💺 ' + remaining + ' متبقي'}</span> | ${booked}/${seats} مقعد</small>
+        <div class="card" style="padding:16px; display:flex; gap:16px; align-items:center; flex-direction:row;">
+           <img class="mgr-pkg-img" src="${imgUrl}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${fallbackImg}'">
+           <div class="mgr-pkg-meta">
+             <strong>${nameHtml}</strong>
+             <div class="mgr-pkg-stats">
+               <span>${isPublished ? '✅ منشور' : '❌ مخفي'}</span>
+               <span class="sep">•</span>
+               <span style="color:${isFull ? 'var(--danger)' : 'var(--success)'};">${isFull ? 'ممتلئ' : `💺 ${remaining} متبقي`}</span>
+               <span class="sep">•</span>
+               <span>${booked}/${seats} مقعد</span>
+               <span class="sep">•</span>
+               <span>💰 ${priceText}</span>
+               <span class="sep">•</span>
+               <span>🏨 ${hotelHtml}</span>
+               <span class="sep">•</span>
+               <span>📅 ${startText} → ${endText}</span>
+             </div>
            </div>
-           <button class="btn btn-s" onclick="showManager('package', ${rowIdx})" style="padding:10px 14px; font-size:0.85rem;" aria-label="تعديل">📝</button>
-           <button class="btn-delete" onclick="performFinalDeletionRobustV4('OFFERS', ${rowIdx})" title="حذف الباقة" aria-label="حذف الباقة">${ICON_TRASH}</button>
+           <div class="mgr-pkg-actions">
+             <button class="btn btn-s" onclick="showManager('package', ${rowIdx})" style="padding:10px 14px; font-size:0.85rem;" aria-label="تعديل">📝 تعديل</button>
+             <button class="btn-delete" onclick="performFinalDeletionRobustV4('OFFERS', ${rowIdx})" title="حذف الباقة" aria-label="حذف الباقة">${ICON_TRASH}</button>
+           </div>
         </div>
       `;
   }).join('');
@@ -987,22 +1213,22 @@ window.showManager = (type, rowIndex = null) => {
           <input type="hidden" name="action" value="savePackage">
           <input type="hidden" name="rowIndex" value="${rowIndex || ''}">
           <div class="full-w field"><label class="label">اسم الباقة</label><input type="text" name="name" value="${item ? item.name : ''}" placeholder="مثال: عمرة رمضان 2025" required></div>
-          <div class="field"><label class="label">السعر (دج)</label><input type="number" name="price" value="${item ? item.price : ''}" placeholder="85000" required></div>
+          <div class="field"><label class="label">السعر الأساسي (دج)</label><input type="number" name="price" value="${item ? item.price : ''}" placeholder="85000" required></div>
           <div class="field"><label class="label">الفندق</label><input type="text" name="hotel" value="${item ? item.hotel : ''}" placeholder="فندق الحرم" required></div>
-          <div class="field"><label class="label">تاريخ البداية</label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}" required></div>
-          <div class="field"><label class="label">تاريخ النهاية</label><input type="date" name="end" value="${item ? formatDateInput(item.end) : ''}" required></div>
-          
-          <div class="field"><label class="label">تاريخ الذهاب</label><input type="date" name="travelStart" value="${item ? formatDateInput(item.travelStart) : ''}"></div>
-          <div class="field"><label class="label">تاريخ العودة</label><input type="date" name="travelEnd" value="${item ? formatDateInput(item.travelEnd) : ''}"></div>
-          
+          <div class="field"><label class="label">بداية العرض <small style="color:var(--text-muted);">(متى يظهر للزبون)</small></label><input type="date" name="start" value="${item ? formatDateInput(item.start) : ''}" data-original="${item ? formatDateInput(item.start) : ''}"></div>
+          <div class="field"><label class="label">نهاية العرض <small style="color:var(--text-muted);">(آخر يوم للحجز)</small></label><input type="date" name="end" value="${item ? formatDateInput(item.end) : ''}"></div>
+
+          <div class="field"><label class="label">تاريخ الذهاب <small style="color:var(--text-muted);">(للرحلة)</small></label><input type="date" name="travelStart" value="${item ? formatDateInput(item.travelStart) : ''}"></div>
+          <div class="field"><label class="label">تاريخ العودة <small style="color:var(--text-muted);">(للرحلة)</small></label><input type="date" name="travelEnd" value="${item ? formatDateInput(item.travelEnd) : ''}"></div>
+
           <div class="field"><label class="label">عدد المقاعد الكلي</label><input type="number" name="totalSeats" value="${item ? item.seats : '50'}" required></div>
           <div class="field"><label class="label">المحجوزة حالياً</label><input type="number" name="booked" value="${item ? item.booked : '0'}" required></div>
-          <div class="full-w field"><label class="label">قائمة الغرف (نص)</label><input type="text" name="rooms" value="${item ? item.rooms : 'ثنائية، ثلاثية، رباعية'}" required></div>
-          <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div class="field"><label class="label">سعر الثنائية</label><input type="number" name="priceDouble" value="${item ? item.priceDouble : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الثلاثية</label><input type="number" name="priceTriple" value="${item ? item.priceTriple : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الرباعية</label><input type="number" name="priceQuad" value="${item ? item.priceQuad : ''}" placeholder="اختياري"></div>
-            <div class="field"><label class="label">سعر الخماسية</label><input type="number" name="priceQuint" value="${item ? item.priceQuint : ''}" placeholder="اختياري"></div>
+
+          <div class="full-w field">
+            <label class="label">الغرف وأسعارها</label>
+            <div id="mgr-rooms-list" class="mgr-rooms-list"></div>
+            <button type="button" class="btn btn-s" id="mgr-add-room-btn" onclick="addRoomRow()" style="margin-top:10px;">➕ إضافة غرفة</button>
+            <small style="display:block; margin-top:6px; color:var(--text-muted);">💡 إذا تركت سعر الغرفة فارغاً، سيتم اعتماد السعر الأساسي للباقة.</small>
           </div>
           <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="field"><label class="label">شركة الطيران</label><input type="text" name="airline" value="${item ? item.airline : ''}"></div>
@@ -1015,13 +1241,13 @@ window.showManager = (type, rowIndex = null) => {
           <div class="full-w field"><label class="label">رابط خريطة الفندق</label><input type="url" name="hotelMap" value="${item ? item.hotelMap : ''}"></div>
 
           <div class="full-w field">
-            <label class="label">صورة الفندق (رفع مباشر إلى Google Drive)</label>
-            <input type="file" id="mgr-file" accept="image/*" onchange="previewMgrImage(this)">
-            <input type="hidden" name="image" value="${item ? item.image : ''}">
-            <div id="mgr-img-preview" style="margin-top:10px;">${item?.image ? `<img src="${item.image}" style="width:100%; max-height:150px; object-fit:cover; border-radius:12px; border:1px solid var(--glass-border);">` : ''}</div>
-            <div id="mgr-upload-progress" style="display:none; margin-top:8px;">
+            <label class="label">صور الفندق والخدمات (حتى 6 صور، رفع مباشر إلى Google Drive)</label>
+            <input type="hidden" name="images" id="mgr-images-hidden" value='${item?.images?.length ? escapeHtml(JSON.stringify(item.images)) : "[]"}'>
+            <div id="mgr-img-slots" class="mgr-img-slots"></div>
+            <small style="display:block; margin-top:8px; color:var(--text-muted);">💡 انقر على المربع لرفع صورة. يمكنك حذف صورة بالنقر على الزر ×.</small>
+            <div id="mgr-upload-progress" style="display:none; margin-top:10px;">
               <div style="background:rgba(255,255,255,0.06); border-radius:8px; overflow:hidden; height:4px;">
-                <div id="mgr-progress-bar" style="width:0%; height:100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius:8px; transition: width 0.3s;"></div>
+                <div id="mgr-progress-bar" style="width:0%; height:100%; background: linear-gradient(90deg, var(--gold-400), var(--teal-400)); border-radius:8px; transition: width 0.3s;"></div>
               </div>
               <small id="mgr-progress-text" style="color:var(--text-muted); margin-top:4px; display:block;">جاري الرفع...</small>
             </div>
@@ -1043,6 +1269,32 @@ window.showManager = (type, rowIndex = null) => {
           </button>
         `;
   }
+  // Initialize image slots for this manager session
+  if (type === 'package') {
+    window._mgrImages = Array.isArray(item?.images) ? item.images.slice(0, 6) : [];
+    renderMgrImageSlots();
+    // Seed the dynamic rooms editor from the existing offer (or defaults).
+    let seedRooms = item ? parseRoomsField(item.rooms) : [];
+    // Merge legacy discrete price fields into the parsed list.
+    if (item) {
+      const legacy = [
+        { k: 'priceDouble', match: 'ثنائية' },
+        { k: 'priceTriple', match: 'ثلاثية' },
+        { k: 'priceQuad',   match: 'رباعية' },
+        { k: 'priceQuint',  match: 'خماسية' }
+      ];
+      legacy.forEach(({ k, match }) => {
+        const v = Number(item[k]);
+        if (!v) return;
+        const existing = seedRooms.find(r => r.name && r.name.includes(match));
+        if (existing && !existing.price) existing.price = v;
+        else if (!existing) seedRooms.push({ name: match, price: v });
+      });
+    }
+    if (!seedRooms.length) seedRooms = [{ name: 'ثنائية', price: '' }, { name: 'ثلاثية', price: '' }, { name: 'رباعية', price: '' }];
+    window._mgrRooms = seedRooms.map(r => ({ name: r.name || '', price: r.price || '' }));
+    renderMgrRoomsList();
+  }
   // Form submission handler
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1054,60 +1306,65 @@ window.showManager = (type, rowIndex = null) => {
     btnLoading.style.display = 'inline';
     const fd = new FormData(form);
     const payload = Object.fromEntries(fd.entries());
-    const fileInput = document.getElementById('mgr-file');
-    // Step 1: Upload image if selected
-    if (fileInput && fileInput.files[0]) {
-      btnLoading.textContent = '📤 جاري ضغط ورفع الصورة...';
-      const progressDiv = document.getElementById('mgr-upload-progress');
-      const progressBar = document.getElementById('mgr-progress-bar');
-      const progressText = document.getElementById('mgr-progress-text');
-      if (progressDiv) progressDiv.style.display = 'block';
-      if (progressBar) progressBar.style.width = '10%';
-      if (progressText) progressText.textContent = '⏳ جاري ضغط الصورة...';
-      try {
-        const compressedB64 = await compressAndConvert(fileInput.files[0], 1200, 0.8);
-        if (progressBar) progressBar.style.width = '40%';
-        if (progressText) progressText.textContent = '📤 جاري رفع الصورة إلى Google Drive...';
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'uploadImage',
-            pass: sessionStorage.getItem('admin_token') || '',
-            filename: fileInput.files[0].name,
-            base64: compressedB64
-          })
-        });
-        if (progressBar) progressBar.style.width = '80%';
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `خطأ في الخادم: ${res.status}`);
-        }
-        const upRes = await res.json();
-        if (upRes.url) {
-          payload.image = upRes.url;
-          if (progressBar) progressBar.style.width = '100%';
-          if (progressText) progressText.textContent = '✅ تم رفع الصورة بنجاح!';
-          showToast('✅ تم رفع الصورة بنجاح', 'success');
-        } else {
-          throw new Error(upRes.error || 'لم يتم الحصول على رابط الصورة');
-        }
-      } catch (uploadErr) {
-        console.error('Image upload failed:', uploadErr);
-        if (progressBar) progressBar.style.width = '0%';
-        if (progressText) progressText.textContent = '❌ فشل الرفع';
+    // Use the accumulated image URLs (already uploaded one-by-one via slot widget).
+    const imagesArr = Array.isArray(window._mgrImages) ? window._mgrImages.filter(Boolean).slice(0, 6) : [];
+    payload.image = imagesArr[0] || '';
+    payload.images = JSON.stringify(imagesArr);
 
-        // Final fallback for the specific error "ADMIN_KEY is not defined"
-        let msg = uploadErr.message;
-        if (msg.includes('ADMIN_KEY')) msg = "خطأ في مفتاح الإدارة. يرجى تسجيل الدخول مجدداً.";
-
-        showToast(`❌ فشل رفع الصورة: ${msg || 'حاول مجدداً'}`, 'error');
-        subBtn.disabled = false;
-        btnText.style.display = 'inline';
-        btnLoading.style.display = 'none';
-        return;
-      }
+    // Serialize dynamic rooms -> JSON [{name, price}]. Fall back to base price.
+    syncMgrRoomsFromDom();
+    const basePrice = Number(payload.price) || 0;
+    const roomsArr = (window._mgrRooms || [])
+      .map(r => ({ name: String(r.name || '').trim(), price: Number(r.price) || basePrice }))
+      .filter(r => r.name);
+    payload.rooms = JSON.stringify(roomsArr);
+    if (!roomsArr.length) {
+      showToast('❌ أضف غرفة واحدة على الأقل.', 'error');
+      subBtn.disabled = false; btnText.style.display = 'inline'; btnLoading.style.display = 'none';
+      return;
     }
+
+    // Sensible date defaults so the offer doesn't get hidden by the backend's
+    // "not started yet" / "expired" filters when the admin leaves them empty.
+    const toISO = d => d.toISOString().slice(0, 10);
+    if (!payload.start) payload.start = toISO(new Date());
+    if (!payload.end) {
+      const y = new Date(); y.setFullYear(y.getFullYear() + 1);
+      payload.end = toISO(y);
+    }
+
+    // ─── Timezone-safety shim for the public-packages filter ────────────
+    // Backend (code.gs::getPackages) hides offers whose start > "today",
+    // where "today" is `new Date(); now.setHours(0,0,0,0)` — i.e. local
+    // (script-TZ) midnight. The start cell is stored as UTC midnight, so
+    // in any timezone east of UTC (e.g. Algeria GMT+1) a start of "today"
+    // lands AFTER local midnight and the offer stays hidden until the
+    // next day. We compensate by shifting the saved start back exactly
+    // one calendar day — but ONLY when the admin actually changed it.
+    // The original loaded value is captured in data-original on the
+    // input; if the submitted value matches it (or this is a brand-new
+    // offer where the field was just populated by the auto-default
+    // above), we still need to shift; if it matches a previously-saved
+    // (already-shifted) value, we skip to avoid cumulative drift on
+    // every edit→save cycle.
+    const shiftBackOneDay = (isoStr) => {
+      if (!isoStr) return '';
+      const d = new Date(isoStr + 'T12:00:00Z'); // noon UTC -> safe rounding
+      if (isNaN(d.getTime())) return isoStr;
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    };
+    const startInputEl = form.querySelector('input[name="start"]');
+    const originalStart = startInputEl ? (startInputEl.dataset.original || '') : '';
+    const isExistingOffer = payload.rowIndex !== undefined && payload.rowIndex !== '' && payload.rowIndex !== null;
+    const startWasChanged = payload.start !== originalStart;
+    // Shift only when: (a) brand-new offer, OR (b) admin edited the start.
+    // Re-saving an existing offer without touching `start` keeps the value
+    // already stored in the sheet (which was shifted at original creation).
+    if (!isExistingOffer || startWasChanged) {
+      payload.start = shiftBackOneDay(payload.start);
+    }
+
     // Step 2: Prepare row values for Google Sheets
     btnLoading.textContent = '💾 جاري حفظ البيانات...';
     let values = [
@@ -1119,7 +1376,7 @@ window.showManager = (type, rowIndex = null) => {
       payload.hotel,                // الفندق (5)
       Number(payload.totalSeats),   // المقاعد (6)
       Number(payload.booked),       // المحجوزة (7)
-      payload.rooms,                // الغرف (8)
+      payload.rooms,                // الغرف (8) — JSON [{name, price}]
       payload.published === 'true', // منشور (9)
       payload.airline || '',        // AIRLINE (10)
       payload.flightType || '',     // FLIGHT_TYPE (11)
@@ -1128,7 +1385,7 @@ window.showManager = (type, rowIndex = null) => {
       payload.food || '',           // FOOD (14)
       payload.hotelMap || '',       // HOTEL_MAP (15)
       payload.description || '',    // DESCRIPTION (16)
-      payload.image || '',          // IMAGES (17)
+      payload.images || '[]',       // IMAGES (17) — JSON array of up to 6 URLs
       payload.travelStart || '',    // TRAVEL_START (18)
       payload.travelEnd || ''       // TRAVEL_END (19)
     ];
@@ -1145,7 +1402,7 @@ window.showManager = (type, rowIndex = null) => {
       if (saveResult.error) {
         showToast(`❌ ${saveResult.error}`, 'error');
       } else {
-        showToast('🕌 تم حفظ الباقة بنجاح!', 'success');
+        showToast('تم رفع العرض بنجاح', 'success', 'assets/img/ui/check.png');
         closeModal('modal-manager');
         setTimeout(async () => {
           await fetchAdminData();
@@ -1176,7 +1433,9 @@ window.performFinalDeletionRobustV4 = async (type, rowIndex) => {
     const token = sessionStorage.getItem('admin_token');
     const payload = {
       action: 'delete',
-      pass: token,
+      // Backend (code.gs) reads the admin credential from `key` only —
+      // matches the `pass` → `key` migration in gasFetch.
+      key: token,
       type: type,
       rowIndex: idx
     };
@@ -1307,7 +1566,7 @@ function exportPDF(data) {
       <td style="text-align:right;">${escapeHtml(row['الاسم'])}</td>
       <td dir="ltr" style="text-align:center; font-family: monospace; font-size: 14px;">${escapeHtml(row['الهاتف'])}</td>
       <td style="text-align:right;">${escapeHtml(row['الباقة'])}</td>
-      <td style="text-align:center; font-weight:bold; font-size: 15px; color:#309aaf;">${escapeHtml(String(row['الأشخاص']))}</td>
+      <td style="text-align:center; font-weight:bold; font-size: 15px; color:#d4af37;">${escapeHtml(String(row['الأشخاص']))}</td>
       <td style="text-align:center;">${escapeHtml(row['الغرفة'])}</td>
       <td style="text-align:center;">${escapeHtml(row['الحالة'])}</td>
       <td style="text-align:center; font-size:12px;">${row['التاريخ'] ? escapeHtml(new Date(row['التاريخ']).toLocaleString('ar-DZ')) : '-'}</td>
@@ -1319,13 +1578,13 @@ function exportPDF(data) {
   <title>${escapeHtml(docTitle)}</title>
   <style>
     body { font-family: 'Tajawal', Tahoma, Arial, sans-serif; padding: 30px; color: #1a1a1a; background: #fff; margin: 0; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #309aaf; padding-bottom: 16px; margin-bottom: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #d4af37; padding-bottom: 16px; margin-bottom: 24px; }
     .header h1 { margin: 0; color: #1a1a1a; font-size: 22px; font-weight: 800; }
     .header p { margin: 8px 0 0; color: #555; font-size: 13px; }
     .logo { font-size: 20px; font-weight: 900; color: #ae9073; white-space: nowrap; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
     th, td { border: 1px solid #ccc; padding: 10px 12px; text-align: center; }
-    th { background-color: #1e2a66; color: #fff; font-weight: bold; }
+    th { background-color: #1a120a; color: #fff; font-weight: bold; }
     tr:nth-child(even) { background-color: #f4f6fb; }
     .footer { margin-top: 36px; text-align: center; color: #555; font-size: 12px; border-top: 1px solid #ccc; padding-top: 14px; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -1334,10 +1593,10 @@ function exportPDF(data) {
 <body>
   <div class="header">
     <div>
-      <h1>تقرير حجوزات وكالة حواس للسياحة والسفر</h1>
+      <h1>تقرير حجوزات أبو إلياس للعمرة</h1>
       <p>الفلتر: <strong>${escapeHtml(filterLabel)}</strong> | إجمالي الحجوزات: <strong>${data.length}</strong> | التاريخ: <strong>${escapeHtml(new Date().toLocaleDateString('ar-DZ'))}</strong></p>
     </div>
-    <div class="logo">HAOUES TRAVEL</div>
+    <div class="logo">ABU ILYAS UMRAH</div>
   </div>
   <table>
     <thead>
@@ -1347,7 +1606,7 @@ function exportPDF(data) {
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <div class="footer">© ${new Date().getFullYear()} Haoues Travel — All rights reserved.</div>
+  <div class="footer">© ${new Date().getFullYear()} Abu Ilyas Umrah — All rights reserved.</div>
 </body>
 </html>`;
   printWindow.document.open();
@@ -1370,19 +1629,19 @@ function exportWord(data) {
     </tr>`).join('');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
-<title>Haoues Travel — تقرير الحجوزات</title>
+<title>Abu Ilyas Umrah — تقرير الحجوزات</title>
 <style>
   body { font-family: 'Tajawal', Tahoma, sans-serif; direction: rtl; padding: 30px; background: #fff; color: #1a1a1a; }
-  h1 { color: #1a1a1a; border-bottom: 2px solid #309aaf; padding-bottom: 10px; }
+  h1 { color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px; }
   .info { color: #555; margin-bottom: 20px; }
   table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th { background: #1e2a66; color: #fff; padding: 12px; border: 1px solid #ccc; }
+  th { background: #1a120a; color: #fff; padding: 12px; border: 1px solid #ccc; }
   td { padding: 10px; border: 1px solid #ccc; text-align: right; }
   tr:nth-child(even) { background: #f4f6fb; }
   .footer { margin-top: 30px; color: #555; font-size: 11px; border-top: 1px solid #ccc; padding-top: 10px; }
 </style></head>
 <body>
-  <h1>Haoues Travel — تقرير الحجوزات — ${escapeHtml(filterLabel)}</h1>
+  <h1>Abu Ilyas Umrah — تقرير الحجوزات — ${escapeHtml(filterLabel)}</h1>
   <p class="info">الفلتر: ${escapeHtml(filterLabel)} | إجمالي النتائج: ${data.length} حجز | تاريخ التصدير: ${escapeHtml(new Date().toLocaleDateString('ar-DZ'))}</p>
   <table>
     <thead>
@@ -1390,7 +1649,7 @@ function exportWord(data) {
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <p class="footer">© ${new Date().getFullYear()} Haoues Travel — All rights reserved.</p>
+  <p class="footer">© ${new Date().getFullYear()} Abu Ilyas Umrah — All rights reserved.</p>
 </body></html>`;
   const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
@@ -1470,12 +1729,24 @@ window.switchTab = (tab) => {
 /* ═══════════════════════════════════════════════════════
    7. TOAST NOTIFICATION SYSTEM
    ═══════════════════════════════════════════════════════ */
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', iconUrl = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.textContent = message;
+  if (iconUrl) {
+    const icon = document.createElement('img');
+    icon.src = iconUrl;
+    icon.alt = '';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.cssText = 'width:24px;height:24px;flex-shrink:0;object-fit:contain;';
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(icon);
+    toast.appendChild(text);
+  } else {
+    toast.textContent = message;
+  }
   const colors = {
     success: { border: 'var(--success)', bg: 'rgba(0, 230, 195, 0.1)', text: 'var(--success)' },
     error: { border: 'var(--danger)', bg: 'rgba(255, 71, 87, 0.1)', text: 'var(--danger)' },
@@ -1496,6 +1767,10 @@ function showToast(message, type = 'info') {
     box-shadow: 0 8px 30px rgba(0,0,0,0.3);
     max-width: 480px;
     text-align: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
   `;
   container.appendChild(toast);
   setTimeout(() => {
@@ -1503,26 +1778,138 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 400);
   }, 4000);
 }
-/* ─── Image Preview in Manager Modal ─── */
-window.previewMgrImage = (input) => {
-  const previewDiv = document.getElementById('mgr-img-preview');
-  if (!previewDiv) return;
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('⚠️ حجم الصورة كبير جداً (الحد الأقصى 5MB). سيتم ضغطها تلقائياً عند الرفع.', 'info');
+/* ─── Dynamic Rooms Editor in Manager Modal ─── */
+function renderMgrRoomsList() {
+  const wrap = document.getElementById('mgr-rooms-list');
+  if (!wrap) return;
+  const rooms = Array.isArray(window._mgrRooms) ? window._mgrRooms : [];
+  wrap.innerHTML = rooms.map((r, i) => `
+    <div class="mgr-room-row" data-idx="${i}">
+      <input type="text" class="mgr-room-name" placeholder="اسم الغرفة (ثنائية، ثلاثية...)" value="${escapeHtml(r.name || '')}" oninput="syncMgrRoomsFromDom()">
+      <input type="number" class="mgr-room-price" placeholder="السعر / شخص (دج)" value="${r.price === '' || r.price == null ? '' : r.price}" min="0" oninput="syncMgrRoomsFromDom()">
+      <button type="button" class="mgr-room-remove" onclick="removeRoomRow(${i})" aria-label="حذف الغرفة" title="حذف">×</button>
+    </div>
+  `).join('');
+}
+window.addRoomRow = function () {
+  syncMgrRoomsFromDom();
+  window._mgrRooms = window._mgrRooms || [];
+  window._mgrRooms.push({ name: '', price: '' });
+  renderMgrRoomsList();
+};
+window.removeRoomRow = function (idx) {
+  syncMgrRoomsFromDom();
+  if (!Array.isArray(window._mgrRooms)) return;
+  window._mgrRooms.splice(idx, 1);
+  renderMgrRoomsList();
+};
+window.syncMgrRoomsFromDom = function () {
+  const wrap = document.getElementById('mgr-rooms-list');
+  if (!wrap) return;
+  window._mgrRooms = Array.from(wrap.querySelectorAll('.mgr-room-row')).map(row => ({
+    name: row.querySelector('.mgr-room-name')?.value || '',
+    price: row.querySelector('.mgr-room-price')?.value || ''
+  }));
+};
+
+/* ─── Multi-image Upload (up to 6) in Manager Modal ─── */
+const MGR_MAX_IMAGES = 6;
+
+function renderMgrImageSlots() {
+  const wrap = document.getElementById('mgr-img-slots');
+  const hidden = document.getElementById('mgr-images-hidden');
+  if (!wrap) return;
+  const imgs = Array.isArray(window._mgrImages) ? window._mgrImages : [];
+  let html = '';
+  for (let i = 0; i < MGR_MAX_IMAGES; i++) {
+    const url = imgs[i];
+    if (url) {
+      html += `
+        <div class="mgr-img-slot filled" data-slot="${i}">
+          <img src="${escapeHtml(url)}" alt="صورة ${i + 1}" loading="lazy">
+          <button type="button" class="mgr-img-remove" onclick="removeMgrImage(${i})" aria-label="حذف الصورة">×</button>
+          <span class="mgr-img-badge">${i + 1}</span>
+        </div>`;
+    } else {
+      html += `
+        <label class="mgr-img-slot empty" data-slot="${i}">
+          <input type="file" accept="image/*" onchange="addMgrImage(this, ${i})" style="display:none;">
+          <span class="mgr-img-plus" aria-hidden="true">+</span>
+          <span class="mgr-img-hint">إضافة صورة</span>
+        </label>`;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      previewDiv.innerHTML = `
-        <img src="${e.target.result}" style="width:100%; max-height:180px; object-fit:cover; border-radius:12px; border: 1px solid var(--glass-border);">
-        <small style="color:var(--success); display:block; margin-top:5px;">✅ ${file.name} (${(file.size / 1024).toFixed(0)} KB) — سيتم ضغطها تلقائياً</small>
-      `;
-    };
-    reader.readAsDataURL(file);
-  } else {
-    previewDiv.innerHTML = '';
   }
+  wrap.innerHTML = html;
+  if (hidden) hidden.value = JSON.stringify(imgs.filter(Boolean).slice(0, MGR_MAX_IMAGES));
+}
+
+window.removeMgrImage = (idx) => {
+  if (!Array.isArray(window._mgrImages)) return;
+  window._mgrImages.splice(idx, 1);
+  renderMgrImageSlots();
+};
+
+window.addMgrImage = async (input, idx) => {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('⚠️ الصورة أكبر من 8MB — سيتم ضغطها تلقائياً.', 'info');
+  }
+  const progressDiv = document.getElementById('mgr-upload-progress');
+  const progressBar = document.getElementById('mgr-progress-bar');
+  const progressText = document.getElementById('mgr-progress-text');
+  if (progressDiv) progressDiv.style.display = 'block';
+  if (progressBar) progressBar.style.width = '10%';
+  if (progressText) progressText.textContent = `⏳ ضغط الصورة ${idx + 1}…`;
+  try {
+    const compressedB64 = await compressAndConvert(file, 1600, 0.82);
+    if (progressBar) progressBar.style.width = '40%';
+    if (progressText) progressText.textContent = `📤 رفع الصورة ${idx + 1} إلى Google Drive…`;
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'uploadImage',
+        // Backend (code.gs) reads the admin credential from `key` only —
+        // matches the `pass` → `key` migration in gasFetch.
+        key: sessionStorage.getItem('admin_token') || '',
+        filename: file.name,
+        base64: compressedB64
+      })
+    });
+    if (progressBar) progressBar.style.width = '80%';
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `خطأ في الخادم: ${res.status}`);
+    }
+    const upRes = await res.json();
+    if (!upRes.url) throw new Error(upRes.error || 'لم يتم الحصول على رابط الصورة');
+    if (!Array.isArray(window._mgrImages)) window._mgrImages = [];
+    // Append new URL (keep order; drop oldest if overflow somehow).
+    window._mgrImages = [...window._mgrImages.filter(Boolean), upRes.url].slice(0, MGR_MAX_IMAGES);
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressText) progressText.textContent = `✅ تم رفع الصورة ${idx + 1} بنجاح`;
+    showToast(`✅ تم رفع الصورة ${idx + 1}`, 'success');
+    renderMgrImageSlots();
+    setTimeout(() => { if (progressDiv) progressDiv.style.display = 'none'; }, 1500);
+  } catch (err) {
+    console.error('Image upload failed:', err);
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressText) progressText.textContent = '❌ فشل الرفع';
+    let msg = err.message || 'حاول مجدداً';
+    if (msg.includes('ADMIN_KEY')) msg = 'خطأ في مفتاح الإدارة. سجّل الدخول مجدداً.';
+    showToast(`❌ فشل رفع الصورة: ${msg}`, 'error');
+    // Hide the stale error indicator after a short delay so it doesn't
+    // obscure the upload slots on the next attempt.
+    setTimeout(() => { if (progressDiv) progressDiv.style.display = 'none'; }, 3000);
+  } finally {
+    input.value = '';
+  }
+};
+
+// Backwards-compatible shim for any older markup that still calls previewMgrImage.
+window.previewMgrImage = (input) => {
+  if (input.files && input.files[0]) window.addMgrImage(input, (window._mgrImages || []).length);
 };
 /* ═══════════════════════════════════════════════════════
    18. CANVAS GRID ANIMATION
@@ -1635,22 +2022,50 @@ window.openOfferDetailModal = (packageName) => {
   const statusEl = document.getElementById('offer-detail-status');
   statusEl.textContent = isFull ? 'ممتلئ' : 'متاح';
   statusEl.className = `badge ${isFull ? 'badge-f' : 'badge-m'}`;
-  // Travel Dates handling
-  const datesEl = document.getElementById('offer-detail-dates');
-  datesEl.innerHTML = '';
-  if (item.travelStart || item.travelEnd) {
+  // ── Dates handling ─────────────────────────────────────────────────
+  // The modal has THREE date-related boxes in the stat-grid:
+  //   #offer-detail-dates      → "📅 التاريخ"  (offer availability window)
+  //   #offer-detail-departure  → "🛫 الذهاب"   (travelStart)
+  //   #offer-detail-return     → "🛬 العودة"   (travelEnd)
+  // Previously only the combined "📅 التاريخ" box was populated, leaving
+  // the two dedicated travel-date boxes empty. Fix: route the real
+  // travel-date values into their dedicated boxes, and collapse the
+  // combined "📅 التاريخ" box to the offer-validity window (or hide it
+  // entirely when both travel dates are present, to avoid redundancy).
+  const datesEl     = document.getElementById('offer-detail-dates');
+  const departureEl = document.getElementById('offer-detail-departure');
+  const returnEl    = document.getElementById('offer-detail-return');
+  const hideStatItem = (el) => {
+    if (!el) return;
+    const box = el.closest('.stat-item');
+    if (box) box.style.display = 'none';
+  };
+  const showStatItem = (el) => {
+    if (!el) return;
+    const box = el.closest('.stat-item');
+    if (box) box.style.display = '';
+  };
+  if (departureEl) {
     if (item.travelStart) {
-      const line = document.createElement('div');
-      line.textContent = `الذهاب: ${formatDate(item.travelStart)}`;
-      datesEl.appendChild(line);
+      departureEl.textContent = formatDate(item.travelStart);
+      showStatItem(departureEl);
+    } else {
+      hideStatItem(departureEl);
     }
+  }
+  if (returnEl) {
     if (item.travelEnd) {
-      const line = document.createElement('div');
-      line.textContent = `العودة: ${formatDate(item.travelEnd)}`;
-      datesEl.appendChild(line);
+      returnEl.textContent = formatDate(item.travelEnd);
+      showStatItem(returnEl);
+    } else {
+      hideStatItem(returnEl);
     }
-  } else {
-    datesEl.textContent = formatDate(item.start);
+  }
+  if (datesEl) {
+    // "📅 التاريخ" always shows the offer-listing date (when this offer
+    // became available on the site), separate from the travel dates.
+    datesEl.textContent = item.start ? formatDate(item.start) : '—';
+    showStatItem(datesEl);
   }
   document.getElementById('offer-detail-hotel').textContent = item.hotel || '—';
   document.getElementById('offer-detail-airline').textContent = item.airline || '—';
@@ -1658,44 +2073,57 @@ window.openOfferDetailModal = (packageName) => {
   document.getElementById('offer-detail-distance').textContent = item.distance || '—';
   // Fixed: use normalized `documents` instead of undefined `docs`
   document.getElementById('offer-detail-docs').textContent = item.documents || 'جواز سفر صالح';
-  // Rooms
+  // Rooms — use the JSON/text-aware parser so JSON commas don't get split as
+  // room boundaries. Show price alongside the name when available.
   const roomsEl = document.getElementById('offer-detail-rooms');
-  roomsEl.innerHTML = (item.rooms || 'ثنائية، ثلاثية، رباعية')
-    .split(/[،,]/)
-    .map(r => r.trim())
-    .filter(Boolean)
-    .map(r => `<span class="chip-btn" style="padding: 4px 10px; font-size: 0.8rem; cursor: default;">${escapeHtml(r)}</span>`)
+  const parsedRooms = parseRoomsField(item.rooms);
+  const displayRooms = parsedRooms.length
+    ? parsedRooms
+    : [{ name: 'ثنائية' }, { name: 'ثلاثية' }, { name: 'رباعية' }];
+  roomsEl.innerHTML = displayRooms
+    .map(r => {
+      const priceLabel = r.price
+        ? ` <span style="opacity:.65; font-weight:500;">(${Number(r.price).toLocaleString()} دج)</span>`
+        : '';
+      return `<span class="chip-btn" style="padding: 4px 10px; font-size: 0.8rem; cursor: default;">${escapeHtml(r.name)}${priceLabel}</span>`;
+    })
     .join('');
   // Desc — use textContent + pre-line CSS to preserve line breaks without HTML injection
   const descEl = document.getElementById('offer-detail-desc');
   descEl.style.whiteSpace = 'pre-line';
   descEl.textContent = item.description || item.text || 'لا توجد تفاصيل إضافية.';
-  // Image button for Lightbox
+  // Image gallery — normalizeItem already parsed item.images into an array.
   const sliderContainer = document.getElementById('offer-detail-slider-container');
-  let imgs = [];
-  if (item.images) {
-    try {
-      const parsed = JSON.parse(item.images);
-      if (Array.isArray(parsed)) imgs = parsed;
-    } catch (e) {
-      if (typeof item.images === 'string') imgs = item.images.split(',').map(s => s.trim()).filter(Boolean);
-    }
-  } else if (item.image) {
-    imgs = typeof item.image === 'string' ? item.image.split(',').map(s => s.trim()).filter(Boolean) : [item.image];
-  }
-  imgs = imgs.filter(u => typeof u === 'string' && u.trim());
+  const imgs = (Array.isArray(item.images) ? item.images : []).filter(u => typeof u === 'string' && u.trim());
   _currentOfferImages = imgs;
 
   if (imgs.length > 0) {
+    const main = imgs[0];
+    const thumbs = imgs.slice(0, 6);
     sliderContainer.innerHTML = `
-      <div style="background: rgba(255,255,255,0.03); padding: 30px; text-align: center; border-bottom: 1px solid var(--glass-border); cursor: pointer;" onclick="openCurrentOfferLightbox()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCurrentOfferLightbox();}">
-        <div style="font-size: 3rem; margin-bottom: 10px;">📸</div>
-        <h3 style="color: var(--primary-light);">تصفح صور الفندق</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem;">انقر هنا لمشاهدة الصور (${imgs.length})</p>
+      <div class="offer-gallery">
+        <button type="button" class="offer-gallery-main" onclick="openCurrentOfferLightbox(0)" aria-label="عرض الصورة 1 بحجم كامل">
+          <img src="${escapeHtml(main)}" alt="${escapeHtml(item.name || '')} — صورة رئيسية" loading="eager">
+          <span class="offer-gallery-badge">📸 ${imgs.length} / ${imgs.length === 1 ? '1' : imgs.length}</span>
+        </button>
+        ${thumbs.length > 1 ? `
+          <div class="offer-gallery-thumbs">
+            ${thumbs.map((u, i) => `
+              <button type="button" class="offer-gallery-thumb ${i === 0 ? 'active' : ''}" onclick="openCurrentOfferLightbox(${i})" aria-label="عرض الصورة ${i + 1} بحجم كامل">
+                <img src="${escapeHtml(u)}" alt="صورة ${i + 1}" loading="lazy">
+              </button>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
   } else {
-    sliderContainer.innerHTML = '';
+    sliderContainer.innerHTML = `
+      <div class="offer-gallery-empty">
+        <div style="font-size: 2.4rem;">🕋</div>
+        <div>لم يتم رفع صور لهذا العرض بعد.</div>
+      </div>
+    `;
   }
   // Hotel map button (if configured)
   const mapBtn = document.getElementById('offer-detail-map-btn');
@@ -1721,9 +2149,9 @@ window.openOfferDetailModal = (packageName) => {
   window.openModal('modal-offer-detail');
 };
 
-window.openCurrentOfferLightbox = () => {
+window.openCurrentOfferLightbox = (startIdx = 0) => {
   if (!_currentOfferImages || !_currentOfferImages.length) return;
-  window.openLightbox(_currentOfferImages);
+  window.openLightbox(_currentOfferImages, startIdx);
 };
 let lightboxImages = [];
 let currentLightboxIndex = 0;
@@ -1747,30 +2175,41 @@ function normalizeImageUrl(u) {
   return url;
 }
 
-window.openLightbox = (images) => {
+window.openLightbox = (images, startIdx = 0) => {
   const list = Array.isArray(images) ? images : String(images || '').split(',');
   lightboxImages = list.map(s => normalizeImageUrl(String(s).trim())).filter(Boolean);
   if (!lightboxImages.length) return;
-  currentLightboxIndex = 0;
+  currentLightboxIndex = Math.max(0, Math.min(startIdx | 0, lightboxImages.length - 1));
 
   const track = document.getElementById('lightbox-track');
   track.innerHTML = lightboxImages.map((img, i) => `
-            <div class="lightbox-slide ${i === 0 ? 'active' : ''}" id="lb-slide-${i}">
-              <img src="${escapeHtml(img)}" alt="صورة الفندق" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer"
+            <div class="lightbox-slide ${i === currentLightboxIndex ? 'active' : ''}" id="lb-slide-${i}">
+              <img src="${escapeHtml(img)}" alt="صورة الفندق" loading="${i === currentLightboxIndex ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer"
                    onerror="this.onerror=null;this.insertAdjacentHTML('afterend','<div class=&quot;lb-fail&quot; style=&quot;color:#cbd2e6;padding:24px;text-align:center;&quot;>تعذر تحميل الصورة</div>');this.style.display='none';">
             </div>
           `).join('');
 
   window.openModal('lightbox-overlay');
-  document.getElementById('lightbox-counter').textContent = `1 / ${lightboxImages.length}`;
+  document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${lightboxImages.length}`;
   document.addEventListener('keydown', handleLightboxKeydown);
 };
 window.closeLightbox = () => {
   const lb = document.getElementById('lightbox-overlay');
-  if (lb) lb.classList.remove('active');
-  const anyOpen = document.querySelector('.modal-overlay.active');
-  if (!anyOpen) document.body.style.overflow = '';
+  if (lb) {
+    const wasActive = lb.classList.contains('active');
+    lb.classList.remove('active');
+    lb.setAttribute('aria-hidden', 'true');
+    if (wasActive) unlockBodyScroll();
+    // Reset any swipe-in-progress transform left on the active slide so a
+    // half-finished gesture doesn't keep the lightbox-frame visually stuck.
+    isDragging = false;
+    const slide = document.getElementById(`lb-slide-${currentLightboxIndex}`);
+    if (slide) { slide.style.transform = ''; slide.style.transition = ''; }
+  }
   document.removeEventListener('keydown', handleLightboxKeydown);
+  // Safety net: if for any reason another path left the lock counter
+  // unbalanced (double-close, transition glitch, etc.), reconcile it now.
+  syncBodyLockToOpenModals();
 };
 function setLightboxImage(newIndex, direction) {
   if (lightboxImages.length <= 1 || newIndex === currentLightboxIndex) return;

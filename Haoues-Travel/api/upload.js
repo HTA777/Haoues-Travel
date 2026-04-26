@@ -1,4 +1,4 @@
-const GOOGLE_APP_SCRIPT_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbzRm_l67zSJOepDVZxqmXa1Dfbt9BtRDnYAK_LD51bK6z46P-o7DnKI72g1JETKfVCB/exec";
+const GOOGLE_APP_SCRIPT_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbxxKLSEicEESR53XBoXsW2lwqrfq87D_006Eq2KnZJFCm2j_ZCxPrDo6y3px7PdV8a8qA/exec";
 const ADMIN_KEY = process.env.ADMIN_KEY || "admin2025H";
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "")
   .split(",").map(s => s.trim()).filter(Boolean);

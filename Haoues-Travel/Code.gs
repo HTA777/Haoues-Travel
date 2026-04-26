@@ -1,5 +1,5 @@
 /**
- * HAOUES TRAVEL & VOYAGES — حواس للسياحة والسفر
+ * ABU ILYAS UMRAH — أبو إلياس للعمرة
  * Production Backend v4 — Luxury Umrah Booking System
  * 
  * Architecture: Google Apps Script + Google Sheets
@@ -8,8 +8,8 @@
  */
 
 const IDS = {
-  BOOKINGS: "16B-ebSdmWVx_IpKbGSjplQIYJGhJadT2Q5eu_YF522U",
-  OFFERS:   "1NyUwUwEV6s3b0CC4W9zEksnVE8DrYz8mS8HnqQF74cM",
+  BOOKINGS: "1Omz6eK_Y8V-lTv1Cx8QKjhrUhqB4T5rIbRtWXRaqVgU",
+  OFFERS:   "10rwDsUj5uZdd9QYvkdf3vIP1fVSNGKZgVMqqlMc95XQ",
   ADS:      null,
   SETTINGS: null
 };
@@ -23,11 +23,11 @@ const OC = {
   TRAVEL_START: 18, TRAVEL_END: 19
 };
 
-const DRIVE_FOLDER_ID = "1pFhFbLhu1n8UngVyaOyASOvY_8yK2zGH";
+const DRIVE_FOLDER_ID = "1uudVGi1HICh6PNoWVmECOYYY8vmCPOrs";
 // ADMIN_KEY is read from Script Properties ("ADMIN_KEY"). Set it once via:
 //   File > Project properties > Script properties OR `PropertiesService.getScriptProperties().setProperty('ADMIN_KEY', '...')`.
 const ADMIN_KEY       = (PropertiesService.getScriptProperties().getProperty("ADMIN_KEY") || "admin2025H").trim();
-const NOTIFY_EMAIL    = "haoues.travel@gmail.com";
+const NOTIFY_EMAIL    = "ahmed.st1440@gmail.com";
 
 /* ══════════════════════════════════════════
    GET ROUTER
@@ -131,15 +131,19 @@ function doPost(e) {
  */
 function checkBookingDuplicate(data) {
   const sheet = getSafeSheet("BOOKINGS", "الحجوزات");
+  // Match the assumption made by the loop below (i = 1 skips a header row).
+  // If the sheet was populated without a header, ensure one before reading
+  // so the first booking row isn't accidentally skipped during this check.
+  ensureBookingsHeader_(sheet);
   const values = sheet.getDataRange().getValues();
 
-  const phone = String(data.phone || '').trim();
+  const phone = normalizePhone_(data.phone);
   const fName = String(data.firstName || '').trim().toLowerCase();
   const lName = String(data.lastName || '').trim().toLowerCase();
   const pkgName = String(data.package || '').trim();
 
   for (let i = 1; i < values.length; i++) {
-    const existingPhone = String(values[i][3]).trim();
+    const existingPhone = normalizePhone_(values[i][3]);
     const existingPkg   = String(values[i][4]).trim();
     
     // Per-offer phone check
@@ -166,14 +170,17 @@ function checkBookingDuplicate(data) {
  */
 function processBooking(data) {
   const sheet = getSafeSheet("BOOKINGS", "الحجوزات");
+  ensureBookingsHeader_(sheet);
+  // Force phone column (D) to plain-text format so leading 0 is preserved.
+  try { sheet.getRange("D:D").setNumberFormat("@"); } catch (_) {}
   const values = sheet.getDataRange().getValues();
 
-  const phone = String(data.phone).trim();
+  const phone = normalizePhone_(data.phone);
   const fName = String(data.firstName).trim().toLowerCase();
   const lName = String(data.lastName).trim().toLowerCase();
   
   for (let i = 1; i < values.length; i++) {
-    const existingPhone = String(values[i][3]).trim();
+    const existingPhone = normalizePhone_(values[i][3]);
     const existingPkg   = String(values[i][4]).trim();
     
     if (existingPhone === phone && existingPkg === data.package) {
@@ -209,6 +216,8 @@ function processBooking(data) {
 
   // Save booking
   const ts = new Date();
+  // Column D is forced to plain-text format (@) above, which already preserves
+  // the leading 0. No apostrophe prefix needed (and would be stored literally).
   sheet.appendRow([
     ts,
     data.firstName,
@@ -221,8 +230,8 @@ function processBooking(data) {
     data.totalPrice || 0
   ]);
 
-  // Send notification
-  sendBookingEmail(data, ts);
+  // Send notification with the normalized phone so the email matches the sheet.
+  sendBookingEmail(Object.assign({}, data, { phone: phone }), ts);
   return { success: true };
 }
 
@@ -498,19 +507,20 @@ function getAds() {
 }
 
 /**
- * Get settings (hardcoded for Haoues, or from sheet)
+ * Get settings (hardcoded for Abu Ilyas, or from sheet)
  */
 function getSettings() {
   if (!IDS.SETTINGS) {
     return {
-      agency_name: "حواس للسياحة والسفر",
-      page_title: "حواس للسياحة والسفر | رحلات العمرة الفاخرة",
-      phone: "0673129022",
-      phone2: "0555607087",
-      email: "haoues.travel@gmail.com",
-      address: "حي الهناء 2 طريق خنشلة، عين البيضاء",
-      facebook: "https://web.facebook.com/haoues.travel",
-      whatsapp: "213673129022"
+      agency_name: "أبو إلياس للعمرة",
+      page_title: "أبو إلياس للعمرة | استقبال وتوجيه وخدمات المطار",
+      phone: "0771266273",
+      phone2: "0553949407",
+      phone3: "0663723805",
+      email: "ahmed.st1440@gmail.com",
+      address: "بوعرفة — البليدة، الجزائر",
+      facebook: "https://www.facebook.com/abw.alyas.ll.mrt",
+      whatsapp: "213771266273"
     };
   }
   const sheet = getSafeSheet("SETTINGS", "الاعدادات");
@@ -528,13 +538,27 @@ function getSettings() {
 function getAllRows(idKey, sheetName) {
   try {
     const sheet = getSafeSheet(idKey, sheetName);
+    // Ensure BOOKINGS sheet has a header BEFORE computing rowIndex, otherwise a
+    // concurrent processBooking could insert one between the read and a later
+    // admin write (delete/updateStatus), shifting rows and invalidating indices.
+    if (idKey === "BOOKINGS") ensureBookingsHeader_(sheet);
     const values = sheet.getDataRange().getValues();
-    if (values.length <= 1) return [];
-    return values.slice(1).map((r, i) => {
-      let row = { rowIndex: i + 2 };
+    if (values.length === 0) return [];
+    // Detect header row: a string label in column 0 (e.g. "timestamp", "id").
+    // If column 0 of row 0 is a Date or numeric ID, treat ALL rows as data.
+    const first0 = values[0][0];
+    const hasHeader = (typeof first0 === "string") && first0.length > 0 && !/^\d/.test(first0);
+    const dataRows = hasHeader ? values.slice(1) : values;
+    const baseIndex = hasHeader ? 2 : 1;
+    if (dataRows.length === 0) return [];
+    // Empty Sheets returns [[""]] from getDataRange — guard against the
+    // single-empty-row ghost from showing up as a phantom record.
+    if (dataRows.length === 1 && dataRows[0].every(c => c === "" || c === null)) return [];
+    return dataRows.map((r, i) => {
+      let row = { rowIndex: i + baseIndex };
       if (idKey === "BOOKINGS") {
-        row["timestamp"] = r[0]; row["الاسم"] = r[1]; row["اللقب"] = r[2]; 
-        row["الهاتف"] = r[3]; row["الباقة"] = r[4]; row["الأشخاص"] = r[5]; 
+        row["timestamp"] = r[0]; row["الاسم"] = r[1]; row["اللقب"] = r[2];
+        row["الهاتف"] = normalizePhone_(r[3]); row["الباقة"] = r[4]; row["الأشخاص"] = r[5];
         row["الغرفة"] = r[6]; row["الحالة"] = r[7]; row["السعر"] = r[8] || 0;
       } else if (idKey === "OFFERS") {
         row["id"] = r[OC.ID]; row["الاسم"] = r[OC.NAME]; row["السعر"] = r[OC.PRICE];
@@ -614,7 +638,7 @@ function respond(data, code) {
 }
 
 /**
- * Luxury Haoues-branded booking notification email
+ * Luxury Abu Ilyas-branded booking notification email
  */
 function sendBookingEmail(data, ts) {
   const timeStr = Utilities.formatDate(ts, "GMT+1", "HH:mm");
@@ -635,14 +659,14 @@ function sendBookingEmail(data, ts) {
 '<tr><td align="center">' +
 '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#060c18; border-radius:28px; overflow:hidden; border:1px solid rgba(48,154,175,0.3); box-shadow:0 25px 50px rgba(0,0,0,0.5);">' +
 
-'<tr><td style="background:linear-gradient(135deg, #309aaf 0%, #1e2a66 50%, #040810 100%); padding:60px 30px; text-align:center;">' +
+'<tr><td style="background:linear-gradient(135deg, #d4af37 0%, #1a120a 50%, #040810 100%); padding:60px 30px; text-align:center;">' +
 '<div style="font-size:70px; margin-bottom:15px;">🕋</div>' +
 '<h1 style="margin:0; color:#FFFFFF; font-size:28px; font-weight:900; letter-spacing:1px; text-shadow:0 2px 10px rgba(48,154,175,0.5);">طلب حجز عمرة جديد</h1>' +
-'<p style="margin:12px 0 0; color:rgba(255,255,255,0.7); font-size:16px;">حواس للسياحة والسفر — HTV</p>' +
+'<p style="margin:12px 0 0; color:rgba(255,255,255,0.7); font-size:16px;">أبو إلياس للعمرة</p>' +
 '</td></tr>' +
 
 '<tr><td style="padding:40px 30px;">' +
-'<div style="margin-bottom:25px; border-right:4px solid #309aaf; padding-right:15px; text-align:right;">' +
+'<div style="margin-bottom:25px; border-right:4px solid #d4af37; padding-right:15px; text-align:right;">' +
 '<h2 style="color:#ae9073; font-size:20px; font-weight:bold; margin:0;">تفاصيل الزبون</h2>' +
 '</div>' +
 '<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.02); border-radius:18px; border:1px solid rgba(255,255,255,0.05);">' +
@@ -665,7 +689,7 @@ row('📅 التاريخ', dateStr) +
 
 '<tr><td style="background:#02050a; padding:30px; text-align:center; border-top:1px solid rgba(255,255,255,0.05);">' +
 '<p style="margin:0; color:rgba(240,242,248,0.2); font-size:11px; letter-spacing:2px;">' +
-'© 2026 HAOUES TRAVEL & VOYAGES | عين البيضاء، الجزائر' +
+'© 2026 ABU ILYAS UMRAH | بوعرفة، البليدة، الجزائر' +
 '</p></td></tr>' +
 
 '</table></td></tr></table>' +
@@ -676,13 +700,62 @@ row('📅 التاريخ', dateStr) +
     to: NOTIFY_EMAIL, 
     subject: subject, 
     htmlBody: body, 
-    name: 'حواس للسياحة والسفر — HTV' 
+    name: 'أبو إلياس للعمرة' 
   });
 }
 
 /* ══════════════════════════════════════════
    SHEET SETUP
    ══════════════════════════════════════════ */
+
+/**
+ * Add header row to BOOKINGS sheet if missing — runs at every booking write.
+ * Without a header, getAllRows would mistake the first booking for a header.
+ */
+function ensureBookingsHeader_(sheet) {
+  try {
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["timestamp", "الاسم", "اللقب", "الهاتف", "الباقة", "الأشخاص", "الغرفة", "الحالة", "السعر"]);
+      sheet.getRange(1, 1, 1, 9)
+        .setBackground("#040810")
+        .setFontColor("#ae9073")
+        .setFontWeight("bold");
+      sheet.setFrozenRows(1);
+      return;
+    }
+    // If the sheet has data but row 1 isn't the expected header, prepend one.
+    const first0 = sheet.getRange(1, 1).getValue();
+    const looksLikeHeader = (typeof first0 === "string") && first0.toLowerCase() === "timestamp";
+    if (!looksLikeHeader) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, 9).setValues([["timestamp", "الاسم", "اللقب", "الهاتف", "الباقة", "الأشخاص", "الغرفة", "الحالة", "السعر"]]);
+      sheet.getRange(1, 1, 1, 9)
+        .setBackground("#040810")
+        .setFontColor("#ae9073")
+        .setFontWeight("bold");
+      sheet.setFrozenRows(1);
+    }
+  } catch (e) {
+    console.log("ensureBookingsHeader_ failed: " + e.message);
+  }
+}
+
+/**
+ * Normalize an Algerian phone number for display.
+ * Sheets sometimes strips the leading 0 from "0771266273". Restore it when the
+ * value is a 9-digit string starting with 5/6/7 (mobile), or is a Number.
+ */
+function normalizePhone_(raw) {
+  if (raw === null || raw === undefined) return "";
+  let s = String(raw).trim();
+  // strip leading apostrophe (used to force text in Sheets)
+  if (s.charAt(0) === "'") s = s.substring(1);
+  // strip non-digits other than +
+  const digits = s.replace(/[^0-9]/g, "");
+  if (digits.length === 9 && /^[5-7]/.test(digits)) return "0" + digits;
+  if (digits.length === 10) return digits;
+  return s;
+}
 
 function setupSheets() {
   const setup = [
