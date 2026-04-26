@@ -8,8 +8,8 @@
  */
 
 const IDS = {
-  BOOKINGS: "16B-ebSdmWVx_IpKbGSjplQIYJGhJadT2Q5eu_YF522U",
-  OFFERS:   "1NyUwUwEV6s3b0CC4W9zEksnVE8DrYz8mS8HnqQF74cM",
+  BOOKINGS: "1Omz6eK_Y8V-lTv1Cx8QKjhrUhqB4T5rIbRtWXRaqVgU",
+  OFFERS:   "10rwDsUj5uZdd9QYvkdf3vIP1fVSNGKZgVMqqlMc95XQ",
   ADS:      null,
   SETTINGS: null
 };
@@ -23,7 +23,7 @@ const OC = {
   TRAVEL_START: 18, TRAVEL_END: 19
 };
 
-const DRIVE_FOLDER_ID = "1pFhFbLhu1n8UngVyaOyASOvY_8yK2zGH";
+const DRIVE_FOLDER_ID = "1uudVGi1HICh6PNoWVmECOYYY8vmCPOrs";
 // ADMIN_KEY is read from Script Properties ("ADMIN_KEY"). Set it once via:
 //   File > Project properties > Script properties OR `PropertiesService.getScriptProperties().setProperty('ADMIN_KEY', '...')`.
 const ADMIN_KEY       = (PropertiesService.getScriptProperties().getProperty("ADMIN_KEY") || "admin2025H").trim();
