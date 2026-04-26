@@ -505,12 +505,13 @@ function getSettings() {
     return {
       agency_name: "أبو إلياس للعمرة",
       page_title: "أبو إلياس للعمرة | استقبال وتوجيه وخدمات المطار",
-      phone: "0673129022",
-      phone2: "0555607087",
+      phone: "0771266273",
+      phone2: "0553949407",
+      phone3: "0663723805",
       email: "ahmed.st1440@gmail.com",
       address: "بوعرفة — البليدة، الجزائر",
       facebook: "https://www.facebook.com/abw.alyas.ll.mrt",
-      whatsapp: "213673129022"
+      whatsapp: "213771266273"
     };
   }
   const sheet = getSafeSheet("SETTINGS", "الاعدادات");
