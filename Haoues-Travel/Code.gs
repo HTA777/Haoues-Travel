@@ -131,6 +131,10 @@ function doPost(e) {
  */
 function checkBookingDuplicate(data) {
   const sheet = getSafeSheet("BOOKINGS", "الحجوزات");
+  // Match the assumption made by the loop below (i = 1 skips a header row).
+  // If the sheet was populated without a header, ensure one before reading
+  // so the first booking row isn't accidentally skipped during this check.
+  ensureBookingsHeader_(sheet);
   const values = sheet.getDataRange().getValues();
 
   const phone = normalizePhone_(data.phone);
