@@ -133,13 +133,13 @@ function checkBookingDuplicate(data) {
   const sheet = getSafeSheet("BOOKINGS", "الحجوزات");
   const values = sheet.getDataRange().getValues();
 
-  const phone = String(data.phone || '').trim();
+  const phone = normalizePhone_(data.phone);
   const fName = String(data.firstName || '').trim().toLowerCase();
   const lName = String(data.lastName || '').trim().toLowerCase();
   const pkgName = String(data.package || '').trim();
 
   for (let i = 1; i < values.length; i++) {
-    const existingPhone = String(values[i][3]).trim();
+    const existingPhone = normalizePhone_(values[i][3]);
     const existingPkg   = String(values[i][4]).trim();
     
     // Per-offer phone check
@@ -176,7 +176,7 @@ function processBooking(data) {
   const lName = String(data.lastName).trim().toLowerCase();
   
   for (let i = 1; i < values.length; i++) {
-    const existingPhone = String(values[i][3]).trim();
+    const existingPhone = normalizePhone_(values[i][3]);
     const existingPkg   = String(values[i][4]).trim();
     
     if (existingPhone === phone && existingPkg === data.package) {
