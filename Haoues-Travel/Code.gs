@@ -166,9 +166,12 @@ function checkBookingDuplicate(data) {
  */
 function processBooking(data) {
   const sheet = getSafeSheet("BOOKINGS", "الحجوزات");
+  ensureBookingsHeader_(sheet);
+  // Force phone column (D) to plain-text format so leading 0 is preserved.
+  try { sheet.getRange("D:D").setNumberFormat("@"); } catch (_) {}
   const values = sheet.getDataRange().getValues();
 
-  const phone = String(data.phone).trim();
+  const phone = normalizePhone_(data.phone);
   const fName = String(data.firstName).trim().toLowerCase();
   const lName = String(data.lastName).trim().toLowerCase();
   
@@ -209,11 +212,13 @@ function processBooking(data) {
 
   // Save booking
   const ts = new Date();
+  // Prefix with apostrophe so Sheets treats the phone as text (preserves leading 0).
+  const phoneAsText = phone.charAt(0) === "'" ? phone : "'" + phone;
   sheet.appendRow([
     ts,
     data.firstName,
     data.lastName,
-    phone,
+    phoneAsText,
     data.package,
     data.pax,
     data.roomType,
@@ -530,12 +535,19 @@ function getAllRows(idKey, sheetName) {
   try {
     const sheet = getSafeSheet(idKey, sheetName);
     const values = sheet.getDataRange().getValues();
-    if (values.length <= 1) return [];
-    return values.slice(1).map((r, i) => {
-      let row = { rowIndex: i + 2 };
+    if (values.length === 0) return [];
+    // Detect header row: a string label in column 0 (e.g. "timestamp", "id").
+    // If column 0 of row 0 is a Date (BOOKINGS) or numeric ID, treat ALL rows as data.
+    const first0 = values[0][0];
+    const hasHeader = (typeof first0 === "string") && first0.length > 0 && !/^\d/.test(first0);
+    const dataRows = hasHeader ? values.slice(1) : values;
+    const baseIndex = hasHeader ? 2 : 1;
+    if (dataRows.length === 0) return [];
+    return dataRows.map((r, i) => {
+      let row = { rowIndex: i + baseIndex };
       if (idKey === "BOOKINGS") {
-        row["timestamp"] = r[0]; row["الاسم"] = r[1]; row["اللقب"] = r[2]; 
-        row["الهاتف"] = r[3]; row["الباقة"] = r[4]; row["الأشخاص"] = r[5]; 
+        row["timestamp"] = r[0]; row["الاسم"] = r[1]; row["اللقب"] = r[2];
+        row["الهاتف"] = normalizePhone_(r[3]); row["الباقة"] = r[4]; row["الأشخاص"] = r[5];
         row["الغرفة"] = r[6]; row["الحالة"] = r[7]; row["السعر"] = r[8] || 0;
       } else if (idKey === "OFFERS") {
         row["id"] = r[OC.ID]; row["الاسم"] = r[OC.NAME]; row["السعر"] = r[OC.PRICE];
@@ -684,6 +696,55 @@ row('📅 التاريخ', dateStr) +
 /* ══════════════════════════════════════════
    SHEET SETUP
    ══════════════════════════════════════════ */
+
+/**
+ * Add header row to BOOKINGS sheet if missing — runs at every booking write.
+ * Without a header, getAllRows would mistake the first booking for a header.
+ */
+function ensureBookingsHeader_(sheet) {
+  try {
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["timestamp", "الاسم", "اللقب", "الهاتف", "الباقة", "الأشخاص", "الغرفة", "الحالة", "السعر"]);
+      sheet.getRange(1, 1, 1, 9)
+        .setBackground("#040810")
+        .setFontColor("#ae9073")
+        .setFontWeight("bold");
+      sheet.setFrozenRows(1);
+      return;
+    }
+    // If the sheet has data but row 1 isn't the expected header, prepend one.
+    const first0 = sheet.getRange(1, 1).getValue();
+    const looksLikeHeader = (typeof first0 === "string") && first0.toLowerCase() === "timestamp";
+    if (!looksLikeHeader) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, 9).setValues([["timestamp", "الاسم", "اللقب", "الهاتف", "الباقة", "الأشخاص", "الغرفة", "الحالة", "السعر"]]);
+      sheet.getRange(1, 1, 1, 9)
+        .setBackground("#040810")
+        .setFontColor("#ae9073")
+        .setFontWeight("bold");
+      sheet.setFrozenRows(1);
+    }
+  } catch (e) {
+    console.log("ensureBookingsHeader_ failed: " + e.message);
+  }
+}
+
+/**
+ * Normalize an Algerian phone number for display.
+ * Sheets sometimes strips the leading 0 from "0771266273". Restore it when the
+ * value is a 9-digit string starting with 5/6/7 (mobile), or is a Number.
+ */
+function normalizePhone_(raw) {
+  if (raw === null || raw === undefined) return "";
+  let s = String(raw).trim();
+  // strip leading apostrophe (used to force text in Sheets)
+  if (s.charAt(0) === "'") s = s.substring(1);
+  // strip non-digits other than +
+  const digits = s.replace(/[^0-9]/g, "");
+  if (digits.length === 9 && /^[5-7]/.test(digits)) return "0" + digits;
+  if (digits.length === 10) return digits;
+  return s;
+}
 
 function setupSheets() {
   const setup = [
