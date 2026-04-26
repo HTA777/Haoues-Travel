@@ -226,8 +226,8 @@ function processBooking(data) {
     data.totalPrice || 0
   ]);
 
-  // Send notification
-  sendBookingEmail(data, ts);
+  // Send notification with the normalized phone so the email matches the sheet.
+  sendBookingEmail(Object.assign({}, data, { phone: phone }), ts);
   return { success: true };
 }
 
@@ -547,6 +547,9 @@ function getAllRows(idKey, sheetName) {
     const dataRows = hasHeader ? values.slice(1) : values;
     const baseIndex = hasHeader ? 2 : 1;
     if (dataRows.length === 0) return [];
+    // Empty Sheets returns [[""]] from getDataRange — guard against the
+    // single-empty-row ghost from showing up as a phantom record.
+    if (dataRows.length === 1 && dataRows[0].every(c => c === "" || c === null)) return [];
     return dataRows.map((r, i) => {
       let row = { rowIndex: i + baseIndex };
       if (idKey === "BOOKINGS") {
