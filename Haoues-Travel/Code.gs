@@ -534,10 +534,14 @@ function getSettings() {
 function getAllRows(idKey, sheetName) {
   try {
     const sheet = getSafeSheet(idKey, sheetName);
+    // Ensure BOOKINGS sheet has a header BEFORE computing rowIndex, otherwise a
+    // concurrent processBooking could insert one between the read and a later
+    // admin write (delete/updateStatus), shifting rows and invalidating indices.
+    if (idKey === "BOOKINGS") ensureBookingsHeader_(sheet);
     const values = sheet.getDataRange().getValues();
     if (values.length === 0) return [];
     // Detect header row: a string label in column 0 (e.g. "timestamp", "id").
-    // If column 0 of row 0 is a Date (BOOKINGS) or numeric ID, treat ALL rows as data.
+    // If column 0 of row 0 is a Date or numeric ID, treat ALL rows as data.
     const first0 = values[0][0];
     const hasHeader = (typeof first0 === "string") && first0.length > 0 && !/^\d/.test(first0);
     const dataRows = hasHeader ? values.slice(1) : values;
