@@ -32,7 +32,7 @@ Browser (index.html + assets/js/script.js)
 This project has no build step. To preview locally:
 
 ```bash
-# From the project subfolder
+# From the `Haoues-Travel/` subfolder
 python3 -m http.server 8000
 # then open http://localhost:8000
 ```
@@ -77,7 +77,7 @@ That fallback has been removed. To rotate:
 ## Folder layout
 
 ```
-abu-ilyas-umrah/
+Haoues-Travel/
 ├── index.html
 ├── assets/
 │   ├── css/style.css
