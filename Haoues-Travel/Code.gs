@@ -1,5 +1,5 @@
 /**
- * HAOUES TRAVEL & VOYAGES — حواس للسياحة والسفر
+ * ABU ILYAS UMRAH — أبو إلياس للعمرة
  * Production Backend v4 — Luxury Umrah Booking System
  * 
  * Architecture: Google Apps Script + Google Sheets
@@ -27,7 +27,7 @@ const DRIVE_FOLDER_ID = "1pFhFbLhu1n8UngVyaOyASOvY_8yK2zGH";
 // ADMIN_KEY is read from Script Properties ("ADMIN_KEY"). Set it once via:
 //   File > Project properties > Script properties OR `PropertiesService.getScriptProperties().setProperty('ADMIN_KEY', '...')`.
 const ADMIN_KEY       = (PropertiesService.getScriptProperties().getProperty("ADMIN_KEY") || "admin2025H").trim();
-const NOTIFY_EMAIL    = "haoues.travel@gmail.com";
+const NOTIFY_EMAIL    = "ahmed.st1440@gmail.com";
 
 /* ══════════════════════════════════════════
    GET ROUTER
@@ -498,18 +498,18 @@ function getAds() {
 }
 
 /**
- * Get settings (hardcoded for Haoues, or from sheet)
+ * Get settings (hardcoded for Abu Ilyas, or from sheet)
  */
 function getSettings() {
   if (!IDS.SETTINGS) {
     return {
-      agency_name: "حواس للسياحة والسفر",
-      page_title: "حواس للسياحة والسفر | رحلات العمرة الفاخرة",
+      agency_name: "أبو إلياس للعمرة",
+      page_title: "أبو إلياس للعمرة | استقبال وتوجيه وخدمات المطار",
       phone: "0673129022",
       phone2: "0555607087",
-      email: "haoues.travel@gmail.com",
-      address: "حي الهناء 2 طريق خنشلة، عين البيضاء",
-      facebook: "https://web.facebook.com/haoues.travel",
+      email: "ahmed.st1440@gmail.com",
+      address: "بوعرفة — البليدة، الجزائر",
+      facebook: "https://www.facebook.com/abw.alyas.ll.mrt",
       whatsapp: "213673129022"
     };
   }
@@ -614,7 +614,7 @@ function respond(data, code) {
 }
 
 /**
- * Luxury Haoues-branded booking notification email
+ * Luxury Abu Ilyas-branded booking notification email
  */
 function sendBookingEmail(data, ts) {
   const timeStr = Utilities.formatDate(ts, "GMT+1", "HH:mm");
@@ -635,14 +635,14 @@ function sendBookingEmail(data, ts) {
 '<tr><td align="center">' +
 '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#060c18; border-radius:28px; overflow:hidden; border:1px solid rgba(48,154,175,0.3); box-shadow:0 25px 50px rgba(0,0,0,0.5);">' +
 
-'<tr><td style="background:linear-gradient(135deg, #309aaf 0%, #1e2a66 50%, #040810 100%); padding:60px 30px; text-align:center;">' +
+'<tr><td style="background:linear-gradient(135deg, #d4af37 0%, #1a120a 50%, #040810 100%); padding:60px 30px; text-align:center;">' +
 '<div style="font-size:70px; margin-bottom:15px;">🕋</div>' +
 '<h1 style="margin:0; color:#FFFFFF; font-size:28px; font-weight:900; letter-spacing:1px; text-shadow:0 2px 10px rgba(48,154,175,0.5);">طلب حجز عمرة جديد</h1>' +
-'<p style="margin:12px 0 0; color:rgba(255,255,255,0.7); font-size:16px;">حواس للسياحة والسفر — HTV</p>' +
+'<p style="margin:12px 0 0; color:rgba(255,255,255,0.7); font-size:16px;">أبو إلياس للعمرة</p>' +
 '</td></tr>' +
 
 '<tr><td style="padding:40px 30px;">' +
-'<div style="margin-bottom:25px; border-right:4px solid #309aaf; padding-right:15px; text-align:right;">' +
+'<div style="margin-bottom:25px; border-right:4px solid #d4af37; padding-right:15px; text-align:right;">' +
 '<h2 style="color:#ae9073; font-size:20px; font-weight:bold; margin:0;">تفاصيل الزبون</h2>' +
 '</div>' +
 '<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(255,255,255,0.02); border-radius:18px; border:1px solid rgba(255,255,255,0.05);">' +
@@ -665,7 +665,7 @@ row('📅 التاريخ', dateStr) +
 
 '<tr><td style="background:#02050a; padding:30px; text-align:center; border-top:1px solid rgba(255,255,255,0.05);">' +
 '<p style="margin:0; color:rgba(240,242,248,0.2); font-size:11px; letter-spacing:2px;">' +
-'© 2026 HAOUES TRAVEL & VOYAGES | عين البيضاء، الجزائر' +
+'© 2026 ABU ILYAS UMRAH | بوعرفة، البليدة، الجزائر' +
 '</p></td></tr>' +
 
 '</table></td></tr></table>' +
@@ -676,7 +676,7 @@ row('📅 التاريخ', dateStr) +
     to: NOTIFY_EMAIL, 
     subject: subject, 
     htmlBody: body, 
-    name: 'حواس للسياحة والسفر — HTV' 
+    name: 'أبو إلياس للعمرة' 
   });
 }
 

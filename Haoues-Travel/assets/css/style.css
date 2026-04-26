@@ -46,13 +46,13 @@
   --gold-glow-strong: rgba(212, 175, 55, 0.55);
 
   /* ── TEAL/CYAN SYSTEM ─────────────────────────── */
-  --teal-100: #e0faf7;
-  --teal-200: #9ef0e8;
-  --teal-300: #4dd9cc;
-  --teal-400: #00c2b8;
-  --teal-500: #309aaf;
-  --teal-600: #1d6e7a;
-  --teal-glow: rgba(0, 194, 184, 0.22);
+  --teal-100: #fbf3dc;
+  --teal-200: #ead899;
+  --teal-300: #d8b86e;
+  --teal-400: #c79a40;
+  --teal-500: #a07e34;
+  --teal-600: #6f5722;
+  --teal-glow: rgba(212, 175, 55, 0.22);
 
   /* ── SEMANTIC ─────────────────────────────────── */
   --success:    #2ecc71;
@@ -146,7 +146,7 @@
   --shadow-lg:   0 20px 60px rgba(0,0,0,0.60), 0 4px 16px rgba(0,0,0,0.40);
   --shadow-xl:   0 40px 100px rgba(0,0,0,0.70);
   --shadow-gold: 0 0 24px var(--gold-glow), 0 0 60px rgba(212,175,55,0.10);
-  --shadow-teal: 0 0 24px var(--teal-glow), 0 0 60px rgba(0,194,184,0.08);
+  --shadow-teal: 0 0 24px var(--teal-glow), 0 0 60px rgba(212,175,55,0.10);
   --shadow-inset:inset 0 1px 0 rgba(255,255,255,0.05);
 
   /* ── EASINGS ──────────────────────────────────── */
@@ -173,17 +173,17 @@
   /* ── FOCUS RING ───────────────────────────────── */
   --focus-ring:      0 0 0 3px rgba(212, 175, 55, 0.45);
   --focus-ring-gold: 0 0 0 3px rgba(212, 175, 55, 0.60);
-  --focus-ring-teal: 0 0 0 3px rgba(0, 194, 184, 0.45);
+  --focus-ring-teal: 0 0 0 3px rgba(212, 175, 55, 0.45);
 }
 
 /* ═══════════════════════════════════════════════════════════════
    2. LEGACY ALIASES (keep inline JS styles rendering correctly)
    ═══════════════════════════════════════════════════════════════ */
 :root {
-  --primary:         var(--teal-500);
+  --primary:         var(--gold-400);
   --primary-light:   var(--gold-300);
-  --primary-glow:    var(--teal-glow);
-  --primary-subtle:  rgba(48, 154, 175, 0.08);
+  --primary-glow:    var(--gold-glow);
+  --primary-subtle:  rgba(212, 175, 55, 0.08);
   --secondary:       #1e2a66;
   --secondary-light: #2a3d8f;
   --secondary-glow:  rgba(30, 42, 102, 0.45);
@@ -259,7 +259,7 @@ body::after {
   inset: 0;
   background:
     radial-gradient(ellipse 60% 50% at 75% 30%, rgba(212,175,55,0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(0,194,184,0.045) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(212,175,55,0.045) 0%, transparent 60%),
     radial-gradient(ellipse 30% 40% at 50% 100%, rgba(212,175,55,0.03) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
@@ -487,7 +487,7 @@ p, li, label { line-height: var(--leading-arabic); }
 .circle-bg-2 {
   width: 420px; height: 420px;
   bottom: -80px; left: -100px;
-  background: rgba(0, 194, 184, 0.10);
+  background: rgba(212,175,55, 0.10);
   animation-delay: -8s;
 }
 
@@ -1019,9 +1019,8 @@ main { display: block; }
   height: 44px;
   width: auto;
   border-radius: 10px;
-  background: #fff;
-  padding: 3px;
-  box-shadow: var(--shadow-sm);
+  padding: 0;
+  box-shadow: var(--shadow-sm), 0 0 18px rgba(212, 175, 55, 0.18);
 }
 .agency-name-deco {
   font-family: var(--font-display);
@@ -1161,7 +1160,7 @@ main { display: block; }
   inset: 0;
   background:
     radial-gradient(ellipse 60% 50% at 75% 40%, rgba(212,175,55,0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 60% at 20% 85%, rgba(0,194,184,0.08) 0%, transparent 65%);
+    radial-gradient(ellipse 40% 60% at 20% 85%, rgba(212,175,55,0.08) 0%, transparent 65%);
   pointer-events: none;
   z-index: -1;
 }
@@ -1186,12 +1185,12 @@ main { display: block; }
   background: var(--glass-fill);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(0,194,184,0.35);
+  border: 1px solid rgba(212,175,55,0.35);
   color: var(--teal-300);
   font-size: clamp(1rem, 1.6vw, 1.25rem);
   font-weight: var(--w-bold);
   letter-spacing: var(--tracking-wide);
-  box-shadow: 0 0 24px rgba(0,194,184,0.12);
+  box-shadow: 0 0 24px rgba(212,175,55,0.12);
 }
 
 /* Prevent copying / selection / dragging of the hero headlines. */
@@ -1271,10 +1270,10 @@ main { display: block; }
   border-radius: var(--radius-lg);
   background:
     linear-gradient(180deg, rgba(8,16,30,0.72), rgba(6,13,26,0.82));
-  border: 1px solid rgba(0,194,184,0.28);
+  border: 1px solid rgba(212,175,55,0.28);
   box-shadow:
     0 10px 40px rgba(0,0,0,0.45),
-    0 0 32px rgba(0,194,184,0.18),
+    0 0 32px rgba(212,175,55,0.18),
     inset 0 1px 0 rgba(255,255,255,0.04);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1584,7 +1583,7 @@ main { display: block; }
   width: clamp(40px, 5vw, 56px);
   height: auto;
   margin: 0 auto var(--space-2) auto;
-  filter: drop-shadow(0 4px 16px rgba(0, 194, 184, 0.35));
+  filter: drop-shadow(0 4px 16px rgba(212,175,55, 0.35));
 }
 
 .contact-fb-icon {
@@ -1819,8 +1818,8 @@ main { display: block; }
 .admin-header-logo {
   height: 40px;
   border-radius: 10px;
-  background: #fff;
-  padding: 3px;
+  padding: 0;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.18);
 }
 .admin-header-actions {
   margin-inline-start: auto;
@@ -2395,7 +2394,7 @@ main { display: block; }
 .mgr-room-row input:focus {
   outline: none;
   border-color: var(--teal-400);
-  background: rgba(0,194,184,0.05);
+  background: rgba(212,175,55,0.05);
 }
 .mgr-room-remove {
   height: 44px;

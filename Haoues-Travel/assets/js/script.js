@@ -1566,7 +1566,7 @@ function exportPDF(data) {
       <td style="text-align:right;">${escapeHtml(row['الاسم'])}</td>
       <td dir="ltr" style="text-align:center; font-family: monospace; font-size: 14px;">${escapeHtml(row['الهاتف'])}</td>
       <td style="text-align:right;">${escapeHtml(row['الباقة'])}</td>
-      <td style="text-align:center; font-weight:bold; font-size: 15px; color:#309aaf;">${escapeHtml(String(row['الأشخاص']))}</td>
+      <td style="text-align:center; font-weight:bold; font-size: 15px; color:#d4af37;">${escapeHtml(String(row['الأشخاص']))}</td>
       <td style="text-align:center;">${escapeHtml(row['الغرفة'])}</td>
       <td style="text-align:center;">${escapeHtml(row['الحالة'])}</td>
       <td style="text-align:center; font-size:12px;">${row['التاريخ'] ? escapeHtml(new Date(row['التاريخ']).toLocaleString('ar-DZ')) : '-'}</td>
@@ -1578,13 +1578,13 @@ function exportPDF(data) {
   <title>${escapeHtml(docTitle)}</title>
   <style>
     body { font-family: 'Tajawal', Tahoma, Arial, sans-serif; padding: 30px; color: #1a1a1a; background: #fff; margin: 0; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #309aaf; padding-bottom: 16px; margin-bottom: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #d4af37; padding-bottom: 16px; margin-bottom: 24px; }
     .header h1 { margin: 0; color: #1a1a1a; font-size: 22px; font-weight: 800; }
     .header p { margin: 8px 0 0; color: #555; font-size: 13px; }
     .logo { font-size: 20px; font-weight: 900; color: #ae9073; white-space: nowrap; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
     th, td { border: 1px solid #ccc; padding: 10px 12px; text-align: center; }
-    th { background-color: #1e2a66; color: #fff; font-weight: bold; }
+    th { background-color: #1a120a; color: #fff; font-weight: bold; }
     tr:nth-child(even) { background-color: #f4f6fb; }
     .footer { margin-top: 36px; text-align: center; color: #555; font-size: 12px; border-top: 1px solid #ccc; padding-top: 14px; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -1593,10 +1593,10 @@ function exportPDF(data) {
 <body>
   <div class="header">
     <div>
-      <h1>تقرير حجوزات وكالة حواس للسياحة والسفر</h1>
+      <h1>تقرير حجوزات أبو إلياس للعمرة</h1>
       <p>الفلتر: <strong>${escapeHtml(filterLabel)}</strong> | إجمالي الحجوزات: <strong>${data.length}</strong> | التاريخ: <strong>${escapeHtml(new Date().toLocaleDateString('ar-DZ'))}</strong></p>
     </div>
-    <div class="logo">HAOUES TRAVEL</div>
+    <div class="logo">ABU ILYAS UMRAH</div>
   </div>
   <table>
     <thead>
@@ -1606,7 +1606,7 @@ function exportPDF(data) {
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <div class="footer">© ${new Date().getFullYear()} Haoues Travel — All rights reserved.</div>
+  <div class="footer">© ${new Date().getFullYear()} Abu Ilyas Umrah — All rights reserved.</div>
 </body>
 </html>`;
   printWindow.document.open();
@@ -1629,19 +1629,19 @@ function exportWord(data) {
     </tr>`).join('');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
-<title>Haoues Travel — تقرير الحجوزات</title>
+<title>Abu Ilyas Umrah — تقرير الحجوزات</title>
 <style>
   body { font-family: 'Tajawal', Tahoma, sans-serif; direction: rtl; padding: 30px; background: #fff; color: #1a1a1a; }
-  h1 { color: #1a1a1a; border-bottom: 2px solid #309aaf; padding-bottom: 10px; }
+  h1 { color: #1a1a1a; border-bottom: 2px solid #d4af37; padding-bottom: 10px; }
   .info { color: #555; margin-bottom: 20px; }
   table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th { background: #1e2a66; color: #fff; padding: 12px; border: 1px solid #ccc; }
+  th { background: #1a120a; color: #fff; padding: 12px; border: 1px solid #ccc; }
   td { padding: 10px; border: 1px solid #ccc; text-align: right; }
   tr:nth-child(even) { background: #f4f6fb; }
   .footer { margin-top: 30px; color: #555; font-size: 11px; border-top: 1px solid #ccc; padding-top: 10px; }
 </style></head>
 <body>
-  <h1>Haoues Travel — تقرير الحجوزات — ${escapeHtml(filterLabel)}</h1>
+  <h1>Abu Ilyas Umrah — تقرير الحجوزات — ${escapeHtml(filterLabel)}</h1>
   <p class="info">الفلتر: ${escapeHtml(filterLabel)} | إجمالي النتائج: ${data.length} حجز | تاريخ التصدير: ${escapeHtml(new Date().toLocaleDateString('ar-DZ'))}</p>
   <table>
     <thead>
@@ -1649,7 +1649,7 @@ function exportWord(data) {
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <p class="footer">© ${new Date().getFullYear()} Haoues Travel — All rights reserved.</p>
+  <p class="footer">© ${new Date().getFullYear()} Abu Ilyas Umrah — All rights reserved.</p>
 </body></html>`;
   const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
