@@ -1667,8 +1667,14 @@ main { display: block; }
   filter: drop-shadow(0 4px 10px rgba(212,175,55,0.45));
   offset-path: path("M -40 320 Q 600 60 1240 320");
   -webkit-offset-path: path("M -40 320 Q 600 60 1240 320");
-  offset-rotate: auto;
-  -webkit-offset-rotate: auto;
+  /* The SVG glyph is drawn pointing UP (nose at -Y). offset-rotate:auto would
+     align its +X axis with the path tangent, leaving the plane visually
+     perpendicular to its travel direction. Adding 90deg rotates the glyph so
+     its nose follows the path tangent. */
+  offset-rotate: auto 90deg;
+  -webkit-offset-rotate: auto 90deg;
+  offset-anchor: center;
+  -webkit-offset-anchor: center;
   animation: planeFly 14s linear infinite;
 }
 @keyframes planeFly {
