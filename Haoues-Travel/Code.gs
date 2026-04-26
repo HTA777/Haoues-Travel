@@ -212,13 +212,13 @@ function processBooking(data) {
 
   // Save booking
   const ts = new Date();
-  // Prefix with apostrophe so Sheets treats the phone as text (preserves leading 0).
-  const phoneAsText = phone.charAt(0) === "'" ? phone : "'" + phone;
+  // Column D is forced to plain-text format (@) above, which already preserves
+  // the leading 0. No apostrophe prefix needed (and would be stored literally).
   sheet.appendRow([
     ts,
     data.firstName,
     data.lastName,
-    phoneAsText,
+    phone,
     data.package,
     data.pax,
     data.roomType,
