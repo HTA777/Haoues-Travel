@@ -223,9 +223,18 @@ function normalizeItem(item) {
   const imgList = parseImages(normalized.images).concat(
     normalized.image && !parseImages(normalized.images).length ? parseImages(normalized.image) : []
   );
-  // Deduplicate while preserving order
+  // Deduplicate while preserving order, then route every URL through our proxy
+  // so cards / detail view / lightbox all hit Vercel's CDN instead of Drive's
+  // throttled thumbnail endpoint.
   const seen = new Set();
-  normalized.images = imgList.filter(u => (seen.has(u) ? false : (seen.add(u), true))).slice(0, 6);
+  const normalizeForDisplay = (typeof normalizeImageUrl === 'function')
+    ? normalizeImageUrl
+    : (u) => u;
+  normalized.images = imgList
+    .filter(u => (seen.has(u) ? false : (seen.add(u), true)))
+    .slice(0, 6)
+    .map(u => normalizeForDisplay(u))
+    .filter(Boolean);
   normalized.image = normalized.images[0] || '';
   return normalized;
 }
@@ -570,7 +579,8 @@ function renderPackages() {
     const heroImg = item.images && item.images[0] ? item.images[0] : '';
     const heroImgHtml = heroImg
       ? `<div class="card-hero">
-           <img src="${escapeHtml(heroImg)}" alt="${nameHtml}" loading="lazy" referrerpolicy="no-referrer">
+           <img src="${escapeHtml(heroImg)}" alt="${nameHtml}" loading="lazy" referrerpolicy="no-referrer"
+                onerror="this.onerror=null;this.src='${escapeHtml(directDriveUrl(heroImg))}'">
            <span class="badge card-hero-badge ${isFull ? 'badge-f' : 'badge-m'}">${isFull ? 'ممتلئ' : 'متاح'}</span>
            ${item.images.length > 1 ? `<span class="card-hero-count">📸 ${item.images.length}</span>` : ''}
          </div>`
@@ -2103,14 +2113,16 @@ window.openOfferDetailModal = (packageName) => {
     sliderContainer.innerHTML = `
       <div class="offer-gallery">
         <button type="button" class="offer-gallery-main" onclick="openCurrentOfferLightbox(0)" aria-label="عرض الصورة 1 بحجم كامل">
-          <img src="${escapeHtml(main)}" alt="${escapeHtml(item.name || '')} — صورة رئيسية" loading="eager">
+          <img src="${escapeHtml(main)}" alt="${escapeHtml(item.name || '')} — صورة رئيسية" loading="eager"
+               onerror="this.onerror=null;this.src='${escapeHtml(directDriveUrl(main))}'">
           <span class="offer-gallery-badge">📸 ${imgs.length} / ${imgs.length === 1 ? '1' : imgs.length}</span>
         </button>
         ${thumbs.length > 1 ? `
           <div class="offer-gallery-thumbs">
             ${thumbs.map((u, i) => `
               <button type="button" class="offer-gallery-thumb ${i === 0 ? 'active' : ''}" onclick="openCurrentOfferLightbox(${i})" aria-label="عرض الصورة ${i + 1} بحجم كامل">
-                <img src="${escapeHtml(u)}" alt="صورة ${i + 1}" loading="lazy">
+                <img src="${escapeHtml(u)}" alt="صورة ${i + 1}" loading="lazy"
+                     onerror="this.onerror=null;this.src='${escapeHtml(directDriveUrl(u))}'">
               </button>
             `).join('')}
           </div>
@@ -2159,20 +2171,39 @@ let touchStartX = 0;
 let touchEndX = 0;
 let touchMoveX = 0;
 let isDragging = false;
-/* Convert Google Drive share links to their embed thumbnail form so they render
-   reliably cross-origin without referrer blocks. */
+/* Route every Google Drive image through our own /api/image proxy so the
+   browser loads it from Vercel's CDN instead of hitting Drive directly. Drive's
+   thumbnail/uc endpoints rate-limit anonymous visitors aggressively, which
+   used to cause broken images for most users once traffic grew. The proxy
+   caches for a year (file ID = new URL for every new upload). */
 function normalizeImageUrl(u) {
   if (!u || typeof u !== 'string') return '';
   const url = u.trim();
-  // Already a direct image URL
-  if (/googleusercontent\.com|\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(url)) return url;
-  // Drive file ID extraction
+  // Extract a Drive file ID from any known URL shape, OR accept a bare ID.
   let id = null;
-  let m = url.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
-  if (m) id = m[1];
-  if (!id) { m = url.match(/[?&]id=([a-zA-Z0-9_-]{20,})/); if (m) id = m[1]; }
-  if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1600`;
+  if (/^[A-Za-z0-9_-]{20,}$/.test(url)) id = url;
+  if (!id) { const m = url.match(/\/d\/([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  if (!id) { const m = url.match(/[?&]id=([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  // lh3.googleusercontent.com/d/<id>=... also carries an ID after "/d/".
+  if (!id) { const m = url.match(/googleusercontent\.com\/d\/([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  if (id) return `/api/image?id=${id}&sz=1600`;
+  // Non-Drive HTTPS URLs pass through untouched (e.g. uploaded elsewhere).
+  if (/^https?:\/\//i.test(url)) return url;
   return url;
+}
+
+/* Build a direct Drive URL as a last-resort fallback for an <img onerror>.
+   If the proxy is unreachable (e.g. Vercel deployment hasn't picked up the new
+   endpoint yet) we still give the browser something to try. */
+function directDriveUrl(u) {
+  if (!u) return '';
+  const s = String(u).trim();
+  let id = null;
+  if (/^[A-Za-z0-9_-]{20,}$/.test(s)) id = s;
+  if (!id) { const m = s.match(/\/d\/([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  if (!id) { const m = s.match(/[?&]id=([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  if (!id) { const m = s.match(/googleusercontent\.com\/d\/([A-Za-z0-9_-]{20,})/); if (m) id = m[1]; }
+  return id ? `https://lh3.googleusercontent.com/d/${id}=s1600` : s;
 }
 
 window.openLightbox = (images, startIdx = 0) => {
@@ -2185,7 +2216,8 @@ window.openLightbox = (images, startIdx = 0) => {
   track.innerHTML = lightboxImages.map((img, i) => `
             <div class="lightbox-slide ${i === currentLightboxIndex ? 'active' : ''}" id="lb-slide-${i}">
               <img src="${escapeHtml(img)}" alt="صورة الفندق" loading="${i === currentLightboxIndex ? 'eager' : 'lazy'}" decoding="async" referrerpolicy="no-referrer"
-                   onerror="this.onerror=null;this.insertAdjacentHTML('afterend','<div class=&quot;lb-fail&quot; style=&quot;color:#cbd2e6;padding:24px;text-align:center;&quot;>تعذر تحميل الصورة</div>');this.style.display='none';">
+                   data-fallback="${escapeHtml(directDriveUrl(img))}"
+                   onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;return;}this.onerror=null;this.insertAdjacentHTML('afterend','<div class=&quot;lb-fail&quot; style=&quot;color:#cbd2e6;padding:24px;text-align:center;&quot;>تعذر تحميل الصورة</div>');this.style.display='none';">
             </div>
           `).join('');
 

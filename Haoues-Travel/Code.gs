@@ -71,6 +71,13 @@ function doGet(e) {
           settings: getSettings()
         });
 
+      // Last-resort image endpoint used by the Vercel `/api/image` proxy when
+      // every public Drive URL is throttled or refused. Runs as the deployment
+      // owner, so it can read files that aren't publicly shared. Returns the
+      // file bytes as base64 + content-type.
+      case "imageBlob":
+        return respond(getDriveImageBlob(e.parameter.id));
+
       default: return respond({ error: "إجراء غير صالح" }, 400);
     }
   } catch (err) {
@@ -592,40 +599,124 @@ function getAllRows(idKey, sheetName) {
    IMAGE UPLOAD TO GOOGLE DRIVE
    ══════════════════════════════════════════ */
 
+/**
+ * Upload a base64-encoded image into the Drive folder and return a stable URL
+ * the public site can reference.
+ *
+ * IMPORTANT: we do NOT return a `drive.google.com/thumbnail?...` URL here any
+ * more. That endpoint is throttled by Google for anonymous visitors and was
+ * causing broken images once traffic grew. Instead we return the raw file ID
+ * (and a bare URL using it); the Vercel `/api/image?id=...` proxy fetches the
+ * bytes server-side, caches them on the Vercel CDN, and serves them to
+ * visitors directly. The frontend builds the proxy URL from the ID.
+ *
+ * Sharing: we try THREE different ways to make the file publicly viewable,
+ * because `setSharing(ANYONE_WITH_LINK)` silently fails on restricted
+ * Workspace domains. If all three fail we still succeed — the CDN proxy runs
+ * as the deployment owner (you) so it can read the file even when it is
+ * not publicly shared.
+ */
 function uploadToDrive(filename, base64) {
   try {
     if (!base64 || base64.length < 100) {
       throw new Error("بيانات الصورة فارغة أو غير صالحة.");
     }
-    
-    const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+
+    var folder;
+    try {
+      folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    } catch (folderErr) {
+      throw new Error("تعذّر الوصول لمجلد Drive — تحقّق من DRIVE_FOLDER_ID ومن صلاحيات النشر (" + folderErr.message + ").");
+    }
     if (!folder) throw new Error("مجلد الصور غير موجود.");
-    
-    let contentType = "image/jpeg";
-    let rawData = base64;
-    
+
+    var contentType = "image/jpeg";
+    var rawData = base64;
+
     if (base64.indexOf(',') !== -1) {
-      const header = base64.substring(0, base64.indexOf(','));
+      var header = base64.substring(0, base64.indexOf(','));
       rawData = base64.split(',')[1];
-      const typeMatch = header.match(/data:([^;]+)/);
+      var typeMatch = header.match(/data:([^;]+)/);
       if (typeMatch) contentType = typeMatch[1];
     }
-    
-    const bytes = Utilities.base64Decode(rawData);
-    const blob = Utilities.newBlob(bytes, contentType, filename);
-    const file = folder.createFile(blob);
-    const fileId = file.getId();
-    const url = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1200";
-    
+
+    var bytes;
+    try {
+      bytes = Utilities.base64Decode(rawData);
+    } catch (decodeErr) {
+      throw new Error("فشل فك ترميز الصورة — الملف غير صالح.");
+    }
+
+    // Guard against the Apps Script per-request payload ceiling. ~40MB of raw
+    // bytes is around 53MB once base64-encoded in transit, which is above
+    // Apps Script's 50MB limit and usually fails silently.
+    if (bytes.length > 40 * 1024 * 1024) {
+      throw new Error("حجم الصورة كبير جداً (أكبر من 40MB). اضغطها أو اخترها أصغر.");
+    }
+
+    var blob = Utilities.newBlob(bytes, contentType, filename);
+    var file = folder.createFile(blob);
+    var fileId = file.getId();
+
+    // Best-effort public sharing — try multiple access levels, swallow errors.
+    var shareOk = false;
+    var shareErrors = [];
     try {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch (shareErr) {
-      console.log("Sharing failed: " + shareErr.message);
+      shareOk = true;
+    } catch (e1) { shareErrors.push("ANYONE_WITH_LINK: " + e1.message); }
+    if (!shareOk) {
+      try {
+        file.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
+        shareOk = true;
+      } catch (e2) { shareErrors.push("ANYONE: " + e2.message); }
     }
-    
-    return { success: true, url: url, fileId: fileId };
+    if (!shareOk && shareErrors.length) {
+      console.log("Drive sharing failed (file will still be served via Vercel proxy): " + shareErrors.join(" | "));
+    }
+
+    // We return the file ID so the frontend can build a proxy URL such as
+    // `/api/image?id=<fileId>&sz=1600`. We also return a bare Drive URL that
+    // the proxy (and legacy consumers) can use to extract the ID.
+    var url = "https://drive.google.com/file/d/" + fileId + "/view";
+
+    return {
+      success: true,
+      url: url,
+      fileId: fileId,
+      shared: shareOk
+    };
   } catch (err) {
     return { success: false, error: "فشل رفع الصورة: " + err.message };
+  }
+}
+
+/**
+ * Fetch an image from Drive as { contentType, base64 }. Used by the Vercel
+ * `/api/image` proxy as its ultimate fallback when every public Drive URL is
+ * refused. The Apps Script runs as the deployment owner, so this works even
+ * when the file isn't publicly shared. Images above ~10MB will be rejected
+ * because Apps Script responses are capped around 50MB (base64 inflates by
+ * ~33%, and we need headroom for JSON overhead).
+ */
+function getDriveImageBlob(fileId) {
+  try {
+    if (!fileId || !/^[A-Za-z0-9_-]{20,}$/.test(String(fileId))) {
+      return { success: false, error: "Invalid file id." };
+    }
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    var bytes = blob.getBytes();
+    if (bytes.length > 15 * 1024 * 1024) {
+      return { success: false, error: "Image too large for blob transfer; serve from public URL instead." };
+    }
+    return {
+      success: true,
+      contentType: blob.getContentType() || "image/jpeg",
+      base64: Utilities.base64Encode(bytes)
+    };
+  } catch (err) {
+    return { success: false, error: "Drive read failed: " + err.message };
   }
 }
 
