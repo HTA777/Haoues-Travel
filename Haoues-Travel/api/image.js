@@ -72,6 +72,13 @@ async function tryAppsScriptBlob(id) {
   }
 }
 
+/* Error paths must never inherit the immutable cache header we set for
+   successful images — a transient Drive 502 must not be cached for a year. */
+function sendError(res, status, payload) {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+  res.status(status).json(payload);
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -81,13 +88,13 @@ export default async function handler(req, res) {
     return;
   }
   if (req.method !== "GET") {
-    res.status(405).json({ success: false, error: "Method not allowed" });
+    sendError(res, 405, { success: false, error: "Method not allowed" });
     return;
   }
 
   const id = extractFileId(req.query.id || req.query.url);
   if (!id) {
-    res.status(400).json({ success: false, error: "Missing or invalid file id." });
+    sendError(res, 400, { success: false, error: "Missing or invalid file id." });
     return;
   }
 
@@ -108,7 +115,7 @@ export default async function handler(req, res) {
   if (r.ok) return sendImage(res, r.buf, r.ctype);
   failures.push(r.reason);
 
-  res.status(502).json({
+  sendError(res, 502, {
     success: false,
     error: "Failed to fetch image from any source.",
     details: failures,

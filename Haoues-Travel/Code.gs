@@ -705,14 +705,37 @@ function getDriveImageBlob(fileId) {
       return { success: false, error: "Invalid file id." };
     }
     var file = DriveApp.getFileById(fileId);
+
+    // SECURITY: only serve files that actually live inside the configured
+    // uploads folder. Without this check, any caller could pass any file ID
+    // and read arbitrary files the deployment owner's account can access
+    // (personal docs, shared sheets, org-wide files, etc.) because Apps
+    // Script runs with the owner's credentials.
+    var inFolder = false;
+    var parents = file.getParents();
+    while (parents.hasNext()) {
+      if (parents.next().getId() === DRIVE_FOLDER_ID) { inFolder = true; break; }
+    }
+    if (!inFolder) {
+      return { success: false, error: "File is not inside the uploads folder." };
+    }
+
     var blob = file.getBlob();
+    var ctype = blob.getContentType() || "";
+    // SECURITY: reject non-image files even if they're in the uploads folder,
+    // so an accidentally-dropped PDF / spreadsheet can't be exfiltrated
+    // through this endpoint.
+    if (!/^image\//.test(ctype)) {
+      return { success: false, error: "File is not an image." };
+    }
+
     var bytes = blob.getBytes();
     if (bytes.length > 15 * 1024 * 1024) {
       return { success: false, error: "Image too large for blob transfer; serve from public URL instead." };
     }
     return {
       success: true,
-      contentType: blob.getContentType() || "image/jpeg",
+      contentType: ctype,
       base64: Utilities.base64Encode(bytes)
     };
   } catch (err) {
