@@ -1,6 +1,7 @@
-# Haoues Travel & Voyages — حواس للسياحة والسفر
+# Abu Ilyas Umrah — أبو إلياس للعمرة
 
-Static RTL Arabic website for the Haoues Travel Umrah booking platform. The
+Static RTL Arabic website for the Abu Ilyas Umrah reception, guidance and
+airport-services platform. The
 frontend is plain HTML/CSS/JS and is served from Vercel; a thin set of Vercel
 serverless functions under `api/` proxy signed requests to a Google Apps Script
 backend (`Code.gs`) that reads and writes a Google Sheet.
@@ -91,4 +92,4 @@ Haoues-Travel/
 
 ## License
 
-© Haoues Travel & Voyages. All rights reserved.
+© Abu Ilyas Umrah. All rights reserved.
